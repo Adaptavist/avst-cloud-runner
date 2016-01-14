@@ -1,0 +1,62 @@
+---
+
+provider: "aws"
+provider_username: ""
+provider_password: ""
+
+ami_image_id: 'ami-c8208fbb' # ubu-14
+hdd_device_path: '/dev/sda1' #'/dev/xvda' for Centos
+domain: 
+
+cloud_operating_system: "ubuntu-14"
+# cloud_operating_system: "ubuntu-12"
+# cloud_operating_system: "centos-6"
+# cloud_operating_system: "centos-7"
+# cloud_operating_system: "redhat-6"
+
+aws_availability_zone: "eu-west-1c"
+region: "eu-west-1"
+#sets default HDD size to 12G
+aws_ebs_size: 12
+# aws_availability_zone: "eu-central-1a"
+# region: "eu-central-1"
+aws_key_name: "admin"
+aws_ssh_key: "path/to/admin.pem"
+aws_subnet_id: ""
+aws_security_group_ids:
+- ""
+
+# mould: "t2.small"
+mould: "t2.medium"
+git: "https://github.com/Adaptavist/base_puppet_templates.git"
+branch: "master"
+# reference: "tag_here"
+
+skip_clean: false
+
+puppet_runner: "puppet-runner start"
+
+puppet_runner_prepare: "puppet-runner prepare -c ./hiera-configs -d ./hiera -f ./environments/production/modules/hosts/facts.d -t ./hiera-configs -r ./hiera-configs/puppetfile_dictionary.yaml -o ./Puppetfile -e /var/opt/puppet/secure/keys"
+
+custom_cleanup_commands:
+    - "free -m"
+    - "df -T -x tmpfs -x devtmpfs -x fuse.s3ql -x nfs4 -x nfs3 -BG"
+    - "top -b -n1 | head -15"
+
+# Reporting setup
+# confluence_url: ""
+# confluence_user: ""
+# confluence_access_password: ""
+# confluence_parent_page_id: ""
+# confluence_space: ""
+
+# avst_cloud_config_service: ""
+# avst_cloud_config_service_username: ""
+# avst_cloud_config_service_password: ""
+
+# Custom server image and root device path definition file
+# avst_cloud_config_file: 'config/provider_config.yaml'
+
+# Custom bootstrap file
+# custom_bootstrap_script: 'config/bootstrap/custom.sh.erb'
+

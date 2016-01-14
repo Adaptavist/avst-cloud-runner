@@ -1,0 +1,41 @@
+---
+'aws':
+    'eu-central-1':
+        'centos-6':
+            'image_name': ''
+            'root_device_path': '/dev/xvda'
+        'centos-7':
+            'image_name': ''
+            'root_device_path': '/dev/xvda'
+        'redhat-6':
+            'image_name': ''
+        'ubuntu-12':
+            'image_name': ''
+        'ubuntu-14':
+            'image_name': ''
+    'eu-west-1':
+        'centos-6':
+            'image_name': ''
+            'root_device_path': '/dev/xvda'
+        'centos-7':
+            'image_name': 'ami-123456'
+            'root_device_path': '/dev/xvda'
+        'redhat-6':
+            'image_name': ''
+        'ubuntu-12':
+            'image_name': ''
+        'ubuntu-14':
+            'image_name': ''
+
+'rackspace':
+    'LON':
+        'centos-6':
+            'image_name': ''
+        'centos-7':
+            'image_name': ''
+        'redhat-6':
+            'image_name': ''
+        'ubuntu-12':
+            'image_name': ''
+        'ubuntu-14':
+            'image_name': ''

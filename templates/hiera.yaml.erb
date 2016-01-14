@@ -1,0 +1,21 @@
+---
+:backends:
+  - yaml
+  - eyaml
+
+:hierarchy:
+  - custom_config
+  - "%{::customer_short_code}/%{::env}/%{::server_name}"
+  - "%{::customer_short_code}/%{::env}"
+  - "%{::customer_short_code}"
+  - global
+
+:logger: noop
+
+:yaml:
+  :datadir: <%=avst_cloud_base%>/config/hiera
+
+:eyaml:
+  :datadir: <%=avst_cloud_base%>/config/hiera
+  :pkcs7_private_key: <%=avst_cloud_base%>/config/keys/private_key.pkcs7.pem
+  :pkcs7_public_key:  <%=avst_cloud_base%>/config/keys/public_key.pkcs7.pem

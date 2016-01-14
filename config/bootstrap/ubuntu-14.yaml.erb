@@ -1,0 +1,36 @@
+---
+
+pre_upload_commands:
+    - 'apt-get update && apt-get upgrade -o Dpkg::Options::="--force-confold" --force-overwrite -f -y'
+    - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" --force-overwrite -f -y curl'
+    - 'curl -sSL https://raw.github.com/adaptavist/rvm/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.25.33'
+    - 'source /usr/local/rvm/scripts/rvm; rvm install 2.0'
+    - 'echo "gem: --no-ri --no-rdoc" > ~/.gemrc'
+    - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" -f -y git puppet-common puppet augeas-tools libaugeas-dev libaugeas-ruby unzip'
+    - 'source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet -v 3.7.5'
+    - 'source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc r10k ruby-augeas hiera-eyaml hiera-fragment ruby-shadow'
+    - <%="echo #{server_name} > /etc/hostname; sed -i 's/ubuntu/#{server_name}/g' /etc/hosts; sed -i '/127.0.1.1/d' /etc/hosts; echo '127.0.1.1 #{fqdn}% > #{server_name}' >> /etc/hosts; service hostname restart"%>
+    - 'source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet-runner'
+    - 'mkdir /root/.ssh'
+    - 'chmod 700 /root/.ssh'
+<% unless as_user == 'root' %>
+    - <% ssh_dir = "/home/#{as_user}/.ssh"%>
+    - <%="mkdir #{ssh_dir}"%>
+    - <%="chmod 700 #{ssh_dir}"%>
+    - groupadd admin
+    - <%="usermod -a -G admin #{as_user}"%>
+<%end%>
+    - mkdir -p /var/opt/puppet/secure/keys
+    - '<%="chown #{as_user}: /var/opt/puppet"%>'
+    - chmod -R 0500 /var/opt/puppet/secure/keys
+
+custom_file_uploads:
+    "files/id_rsa": <%="/home/#{as_user}/.ssh/."%>
+    "files/known_hosts": <%="/home/#{as_user}/.ssh/."%>
+    "config/keys/private_key.pkcs7.pem": "/tmp/."
+    "config/keys/public_key.pkcs7.pem": "/tmp/."
+
+post_upload_commands:
+    - "mv /tmp/private_key.pkcs7.pem /var/opt/puppet/secure/keys/."
+    - "mv /tmp/public_key.pkcs7.pem /var/opt/puppet/secure/keys/."
+
