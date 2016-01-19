@@ -30,6 +30,17 @@ By default (see global.eyaml configuration), avst-cloud-runner is setup to creat
 
 NOTE: In case you want to start aws server, make sure you provide aws specific setup to be able to connect to server. See global.eyaml for details.
 
+## Global Configuration
+
+Configuration can be done via global yaml config file. Place config to HOME/.avst-cloud.yaml. Options will be loaded if no command line option is provided or setup in hiera config.
+
+Supported options are
+
+* avst_cloud_config_service, avst_cloud_config_service_username, avst_cloud_config_service_password
+* server_config_url_username, server_config_url_password - if --server_config_url option is used
+* confluence_url, confluence_user, confluence_access_password, confluence_space, confluence_parent_page_id - to setup confluence_reporter
+* provider_username, provider_password, region - provider credentials and region
+
 ## Minimal Configuration
 
 To be able to start Jira 6.4.11 on Ubuntu 14 on AWS (check other details in global.yaml), you have to provide:
@@ -130,12 +141,12 @@ For more details and options check config/hiera/global.eyaml
 Adaptavist Cloud Runner
 
 Usage:
-  avst-cloud-runner <server-name> (all|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVICE_CONFIG]
-                               [--no-report] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
-  avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVICE_CONFIG] [--no-report]
-                             [-k | --remove-known-hosts] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
-  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVICE_CONFIG] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
-  avst-cloud-runner (all|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVICE_CONFIG] [--no-report] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
+  avst-cloud-runner <server-name> (all|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
+                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report]
+                             [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner (all|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner -h | --help
 
 Options:
@@ -144,10 +155,10 @@ Options:
   --no-report                        Do not report event to Confluence [default: false]
   -k --remove-known-hosts            Delete entry from ~/.ssh/known_hosts file [default: false]
   -c CONFIG --hiera_config CONFIG    Hiera config file
-  -x CUSTOM --custom_config CUSTOM   Contains JSON that will be available to hiera to configure avst-cloud-runner and passed as facts to created server
-  -s SERVICE_CONFIG --service_config SERVICE_CONFIG url to retrieve avst-cloud-runner configuration for the server
-  -u SERVICE_CONFIG_USERNAME --service_config_username SERVICE_CONFIG_USERNAME username to use to retireve avst-cloud-runner configuration for the server
-  -p SERVICE_CONFIG_PASSWORD --service_config_password SERVICE_CONFIG_PASSWORD password for username to retrieve avst-cloud-runner configuration for the server
+  -x CUSTOM --custom_config CUSTOM   Contains JSON that will be available to hiera to configure avst-cloud and passed as facts to created server
+  -s SERVER_CONFIG_URL --server_config_url SERVER_CONFIG_URL url to retrieve avst-cloud configuration for the server
+  -u SERVER_CONFIG_URL_USERNAME --server_config_url_username SERVER_CONFIG_URL_USERNAME username to use to retireve avst-cloud configuration for the server
+  -p SERVER_CONFIG_URL_PASSWORD --server_config_url_password SERVER_CONFIG_URL_PASSWORD password for username to retrieve avst-cloud configuration for the server
 
 Arguments:
   server-name   Must be in the format: {customer_shortcode}-{env}{server_id}

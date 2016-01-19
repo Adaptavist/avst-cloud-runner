@@ -30,12 +30,12 @@ doc = <<DOCOPT
 Adaptavist Cloud Runner
 
 Usage:
-  avst-cloud-runner <server-name> (all|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVICE_CONFIG]
-                               [--no-report] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
-  avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVICE_CONFIG] [--no-report]
-                             [-k | --remove-known-hosts] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
-  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVICE_CONFIG] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
-  avst-cloud-runner (all|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVICE_CONFIG] [--no-report] [-u SERVICE_CONFIG_USERNAME] [-p SERVICE_CONFIG_PASSWORD]
+  avst-cloud-runner <server-name> (all|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
+                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report]
+                             [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner (all|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner -h | --help
 
 Options:
@@ -45,9 +45,9 @@ Options:
   -k --remove-known-hosts            Delete entry from ~/.ssh/known_hosts file [default: false]
   -c CONFIG --hiera_config CONFIG    Hiera config file
   -x CUSTOM --custom_config CUSTOM   Contains JSON that will be available to hiera to configure avst-cloud and passed as facts to created server
-  -s SERVICE_CONFIG --service_config SERVICE_CONFIG url to retrieve avst-cloud configuration for the server
-  -u SERVICE_CONFIG_USERNAME --service_config_username SERVICE_CONFIG_USERNAME username to use to retireve avst-cloud configuration for the server
-  -p SERVICE_CONFIG_PASSWORD --service_config_password SERVICE_CONFIG_PASSWORD password for username to retrieve avst-cloud configuration for the server
+  -s SERVER_CONFIG_URL --server_config_url SERVER_CONFIG_URL url to retrieve avst-cloud configuration for the server
+  -u SERVER_CONFIG_URL_USERNAME --server_config_url_username SERVER_CONFIG_URL_USERNAME username to use to retireve avst-cloud configuration for the server
+  -p SERVER_CONFIG_URL_PASSWORD --server_config_url_password SERVER_CONFIG_URL_PASSWORD password for username to retrieve avst-cloud configuration for the server
 Arguments:
   server-name   Must be in the format: {customer_shortcode}-{env}{server_id}
                 The customer_shortcode and environment may contain
@@ -94,17 +94,17 @@ def remove_known_hosts_entry(matching, remove_it=true)
     end
 end
 
-def create_aws_server(connection, server_name, conf)
+def create_aws_server(connection, server_name)
     
-    cloud_operating_system = conf.get_config("cloud_operating_system")
+    cloud_operating_system = @conf.get_config("cloud_operating_system")
 
-    avst_cloud_config_service = conf.get_config("avst_cloud_config_service", false)
-    avst_cloud_config_service_username = conf.get_config("avst_cloud_config_service_username", false)
-    avst_cloud_config_service_password = conf.get_config("avst_cloud_config_service_password", false)
-    avst_cloud_config_file = conf.get_config("avst_cloud_config_file", false)
+    avst_cloud_config_service = @conf.get_config("avst_cloud_config_service", false) || @global_config['avst_cloud_config_service']
+    avst_cloud_config_service_username = @conf.get_config("avst_cloud_config_service_username", false) || @global_config['avst_cloud_config_service_username']
+    avst_cloud_config_service_password = @conf.get_config("avst_cloud_config_service_password", false) || @global_config['avst_cloud_config_service_password']
+    avst_cloud_config_file = @conf.get_config("avst_cloud_config_file", false)
 
-    hdd_device_path = conf.get_config("hdd_device_path", false)
-    ami_image_id = conf.get_config("ami_image_id", false)
+    hdd_device_path = @conf.get_config("hdd_device_path", false)
+    ami_image_id = @conf.get_config("ami_image_id", false)
 
     unless hdd_device_path and ami_image_id
         if avst_cloud_config_service
@@ -152,35 +152,35 @@ def create_aws_server(connection, server_name, conf)
         end
     end
     
-    mould                  = conf.get_config("mould")
-    key_name               = conf.get_config("aws_key_name")
-    ssh_key                = conf.get_config("aws_ssh_key") 
-    subnet_id              = conf.get_config("aws_subnet_id")
-    security_group_ids     = conf.get_config("aws_security_group_ids")
-    ebs_size               = conf.get_config("aws_ebs_size", false)
-    availability_zone      = conf.get_config("aws_availability_zone")
+    mould                  = @conf.get_config("mould")
+    key_name               = @conf.get_config("aws_key_name")
+    ssh_key                = @conf.get_config("aws_ssh_key") 
+    subnet_id              = @conf.get_config("aws_subnet_id")
+    security_group_ids     = @conf.get_config("aws_security_group_ids")
+    ebs_size               = @conf.get_config("aws_ebs_size", false)
+    availability_zone      = @conf.get_config("aws_availability_zone")
 
     connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone)
 end
 
-def bootstrap_server(server, conf, force)
+def bootstrap_server(server, force)
     server_name = server.server_name
     # domain and fqdn are overwritten for Vagrant below
-    domain            = conf.get_config("domain")
+    domain            = @conf.get_config("domain")
     fqdn              = "#{server_name}.#{domain}"
     
-    as_user           = conf.get_config('root_user', false) || server.access_user
-    puppet_runner     = conf.get_config('puppet_runner', false)
+    as_user           = @conf.get_config('root_user', false) || server.access_user
+    puppet_runner     = @conf.get_config('puppet_runner', false)
 
-    eyaml_private_key = conf.hiera.config[:eyaml][:pkcs7_private_key]
-    eyaml_public_key  = conf.hiera.config[:eyaml][:pkcs7_public_key]
+    eyaml_private_key = @conf.hiera.config[:eyaml][:pkcs7_private_key]
+    eyaml_public_key  = @conf.hiera.config[:eyaml][:pkcs7_public_key]
 
     unless File.exists?(eyaml_private_key) && File.exists?(eyaml_public_key)
         abort("ERROR: Please ensure the eyaml public and private keys are configured and exist".red)
     end
 
-    os                 = conf.get_config('cloud_operating_system')
-    bootstrap_template = conf.get_config("bootstrap_template", false)
+    os                 = @conf.get_config('cloud_operating_system')
+    bootstrap_template = @conf.get_config("bootstrap_template", false)
     
     # By default load file from config/bootstrap
     default_bootstrap_script = "#{File.expand_path("../../", __FILE__)}/config/bootstrap/#{os}.yaml.erb"
@@ -193,14 +193,14 @@ def bootstrap_server(server, conf, force)
         bootstrap_yaml = {}
     end
 
-    bootstrap_pre_upload_commands = conf.get_config("bootstrap_pre_upload_commands", false)
+    bootstrap_pre_upload_commands = @conf.get_config("bootstrap_pre_upload_commands", false)
     pre_upload_commands = bootstrap_pre_upload_commands || bootstrap_yaml['pre_upload_commands'] || []
     
-    bootstrap_uploads = conf.get_config("bootstrap_uploads", false)
+    bootstrap_uploads = @conf.get_config("bootstrap_uploads", false)
 
     custom_file_uploads = bootstrap_uploads || bootstrap_yaml['custom_file_uploads'] || {}
 
-    bootstrap_post_upload_commands = conf.get_config("bootstrap_pre_upload_commands", false)
+    bootstrap_post_upload_commands = @conf.get_config("bootstrap_pre_upload_commands", false)
     post_upload_commands = bootstrap_post_upload_commands || bootstrap_yaml['post_upload_commands'] || []
     
     remote_server_debug = false
@@ -209,41 +209,41 @@ def bootstrap_server(server, conf, force)
 end
 
 
-def provision_server(server, conf, server_tmp_folder)
+def provision_server(server, server_tmp_folder)
     # Provision params
-    git    = conf.get_config("git")
-    branch = conf.get_config("branch", false)
-    reference = conf.get_config("reference", false)
-    puppet_runner = conf.get_config("puppet_runner", false)
-    puppet_runner_prepare = conf.get_config("puppet_runner_prepare", false)
-    custom_provisioning_commands = conf.get_config("custom_provisioning_commands", false)
+    git    = @conf.get_config("git")
+    branch = @conf.get_config("branch", false)
+    reference = @conf.get_config("reference", false)
+    puppet_runner = @conf.get_config("puppet_runner", false)
+    puppet_runner_prepare = @conf.get_config("puppet_runner_prepare", false)
+    custom_provisioning_commands = @conf.get_config("custom_provisioning_commands", false)
     destination_folder = nil
     server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder)
 end
 
-def post_provision_cleanup(server, conf, server_tmp_folder)
-    os = conf.get_config('cloud_operating_system')
-    custom_cleanup_commands = conf.get_config('custom_cleanup_commands')
+def post_provision_cleanup(server, server_tmp_folder)
+    os = @conf.get_config('cloud_operating_system')
+    custom_cleanup_commands = @conf.get_config('custom_cleanup_commands')
     remote_server_debug = true
     server.post_provisioning_cleanup(custom_cleanup_commands, os, remote_server_debug, server_tmp_folder)
 end
 
-def connect_to_server(connection, server_name, conf)
-    os = conf.get_config('cloud_operating_system')
-    provider = conf.get_config('provider')
+def connect_to_server(connection, server_name)
+    os = @conf.get_config('cloud_operating_system')
+    provider = @conf.get_config('provider')
     case provider
     when "aws"
         # defaults based on os
-        root_user = conf.get_config('root_user', false) || nil
-        root_password = conf.get_config('aws_ssh_key')
+        root_user = @conf.get_config('root_user', false) || nil
+        root_password = @conf.get_config('aws_ssh_key')
     else
         raise "ERROR: Currently supported providers are: aws.".red
     end
     server = connection.server(server_name, root_user, root_password, os)
 end
 
-def test_config(server_name, conf)
-    provider = conf.get_config('provider')
+def test_config(server_name)
+    provider = @conf.get_config('provider')
     splitted            = server_name.split("-")
     customer_short_code = splitted[0]
     env                 = splitted[1].gsub(/\d+/, '')
@@ -251,29 +251,27 @@ def test_config(server_name, conf)
 
     case provider
     when 'aws'
-        hdd_device_path = 
-        ami_image_id = 
         
         puts "Called test-config for #{server_name}".green
-        puts "Provider:            #{conf.get_config('provider')}"
-        puts "Provider user:       #{conf.get_config('provider_username')}"
-        puts "Provider pass:       #{conf.get_config('provider_password')}"
-        puts "eyaml private key:   #{conf.hiera.config[:eyaml][:pkcs7_private_key]}"
-        puts "eyaml public key:    #{conf.hiera.config[:eyaml][:pkcs7_public_key]}"
-        puts "Connection SSH key   #{conf.get_config('aws_ssh_key')}"
-        puts "Domain:              #{conf.get_config('domain', false)}"
+        puts "Provider:            #{@conf.get_config('provider')}"
+        puts "Provider user:       #{@conf.get_config('provider_username')}"
+        puts "Provider pass:       #{@conf.get_config('provider_password')}"
+        puts "eyaml private key:   #{@conf.hiera.config[:eyaml][:pkcs7_private_key]}"
+        puts "eyaml public key:    #{@conf.hiera.config[:eyaml][:pkcs7_public_key]}"
+        puts "Connection SSH key   #{@conf.get_config('aws_ssh_key')}"
+        puts "Domain:              #{@conf.get_config('domain', false)}"
         puts "Customer short code: #{customer_short_code}"
         puts "Environment:         #{env}"
-        puts "Mould:               #{conf.get_config('mould')}"
-        puts "Operating system:    #{conf.get_config('cloud_operating_system')}"
-        puts "Region:              #{conf.get_config('region')}"
-        puts "Subnet id:           #{conf.get_config("aws_subnet_id", false)}"
-        puts "Security group ids:  #{conf.get_config("aws_security_group_ids", false)}"
-        puts "Availability zone:   #{conf.get_config("aws_availability_zone", false)}"
-        puts "Git repo:            #{conf.get_config('git', false)}"
-        puts "Branch:              #{conf.get_config('branch', false)}"
-        puts "Tag reference:       #{conf.get_config('reference', false)}"
-        puts "AWS ebs size:        #{conf.get_config('ebs_size', false)} G"
+        puts "Mould:               #{@conf.get_config('mould')}"
+        puts "Operating system:    #{@conf.get_config('cloud_operating_system')}"
+        puts "Region:              #{@conf.get_config('region')}"
+        puts "Subnet id:           #{@conf.get_config("aws_subnet_id", false)}"
+        puts "Security group ids:  #{@conf.get_config("aws_security_group_ids", false)}"
+        puts "Availability zone:   #{@conf.get_config("aws_availability_zone", false)}"
+        puts "Git repo:            #{@conf.get_config('git', false)}"
+        puts "Branch:              #{@conf.get_config('branch', false)}"
+        puts "Tag reference:       #{@conf.get_config('reference', false)}"
+        puts "AWS ebs size:        #{@conf.get_config('ebs_size', false)} G"
     else
         raise "ERROR: Currently supported providers are: aws.".red
     end
@@ -287,18 +285,23 @@ rescue Docopt::Exit => e
   abort(e.message)
 end
 
-service_config = options["--service_config"]
-if service_config =~ URI::regexp
+@global_config = {}
+if File.exists? ("#{ENV['HOME']}/.avst-cloud.yaml")
+    @global_config = YAML.load(File.read("#{ENV['HOME']}/.avst-cloud.yaml"))
+end
+
+server_config_url = options["--server_config_url"]
+if server_config_url =~ URI::regexp
     # in case it is url download the config
-    url = URI.parse("#{service_config}")
+    url = URI.parse("#{server_config_url}")
     req = Net::HTTP::Get.new(url.request_uri)
-    service_config_username = options["--service_config_username"]
-    service_config_password = options["--service_config_password"]
-    if service_config_username and service_config_password
+    server_config_username = options["--server_config_url_username"] || @global_config['server_config_url_username']
+    server_config_password = options["--server_config_url_password"] || @global_config['server_config_url_password']
+    if server_config_username and server_config_password
         # setup auth
-        req.basic_auth service_config_username, service_config_password
+        req.basic_auth server_config_username, server_config_password
     else
-        puts "service config provided but --service_config_username and --service_config_password missing, trying withouth auth."
+        puts "service config provided but --server_config_url_username and --server_config_url_password missing, trying withouth auth."
     end
 
     use_ssl = false
@@ -312,12 +315,12 @@ if service_config =~ URI::regexp
     
     if response.kind_of? Net::HTTPSuccess and response.body != ""
         begin
-            service_config_yaml = YAML.load(response.body)
+            server_config_yaml = YAML.load(response.body)
         rescue YAML::ParserError => e
             abort("ERROR: Passed config is not a valid yaml. #{response.body}")
         end
     else
-        abort("Configuration via service not found: #{service_config}")
+        abort("Configuration via service not found: #{server_config_url}")
     end
 end
 
@@ -337,18 +340,18 @@ if custom_config
         custom_config['client'] = splitted[0]
     end
     # for avst-cloud hiera config
-    if service_config_yaml
-        service_config_yaml = service_config_yaml.merge custom_config
+    if server_config_yaml
+        server_config_yaml = server_config_yaml.merge custom_config
     else
-        service_config_yaml = custom_config
+        server_config_yaml = custom_config
     end
 end
 
-if service_config_yaml
-    File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write service_config_yaml.to_yaml }
+if server_config_yaml
+    File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
     # as custom facts that will be passed to server 
     # must pass client, mapped_hostname, host_<application_type> or puppet will fail
-    File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write service_config_yaml.to_yaml }
+    File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
 end
 
 force              = options["--force"]
@@ -385,30 +388,38 @@ unless hiera_config
     end
 end
 
-conf = HieraLoader.new(scope, hiera_config)
+@conf = HieraLoader.new(scope, hiera_config)
 
 # parse conf from hiera
-provider = conf.get_config("provider").downcase
+provider = @conf.get_config("provider").downcase
 
-do_not_log = do_not_log || ( conf.get_config("no_report", false) == 'true')
+do_not_log = do_not_log || ( @conf.get_config("no_report", false) == 'true')
 unless do_not_log
     puts "Setting confluence logger as default logger".green
-    conf_base_url        = conf.get_config("confluence_url")
-    conf_user            = conf.get_config("confluence_user")
-    conf_pass            = conf.get_config("confluence_access_password")
-    conf_space           = conf.get_config("confluence_space")
-    conf_parrent_page_id = conf.get_config("confluence_parent_page_id")
-    confl_logger = ConfluenceReporter::Reporter.new(conf_base_url, conf_user, conf_pass)
+    conf_base_url        = @conf.get_config("confluence_url", false) || @global_config['confluence_url']
+    conf_user            = @conf.get_config("confluence_user", false) || @global_config['confluence_user']
+    conf_pass            = @conf.get_config("confluence_access_password", false) || @global_config['confluence_access_password']
+    conf_space           = @conf.get_config("confluence_space", false) || @global_config['confluence_space']
+    conf_parrent_page_id = @conf.get_config("confluence_parent_page_id", false) || @global_config['confluence_parent_page_id']
+    unless conf_base_url and conf_user and conf_pass and conf_space and conf_parrent_page_id
+        raise "Please provide confluence reporter configuration. Provided: URL: #{conf_base_url} User: #{conf_user} Pass: #{conf_pass} Space #{conf_space} Page_id #{conf_parrent_page_id}"
+    end
+    confl_logger = ConfluenceReporter::Reporter.new(conf_base_url, conf_user, conf_pass) 
 end
 
 case provider
 when "aws"
-    provider_user = conf.get_config("provider_username")
-    provider_pass = conf.get_config("provider_password")
-    region = conf.get_config("region")
+    provider_user = @conf.get_config("provider_username", false) || @global_config['provider_username']
+    provider_pass = @conf.get_config("provider_password", false) || @global_config['provider_password']
+    region = @conf.get_config("region", false) || @global_config['region']
+    unless provider_user and provider_pass and region
+        raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}, Region #{region}"
+    end
     connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
     AvstCloud::AwsConnection.logger = confl_logger
     AvstCloud::AwsServer.logger = confl_logger
+    AvstCloud::SshCommandTask.logger = confl_logger
+    AvstCloud::ScpTask.logger = confl_logger
 else
     raise "ERROR: Currently supported providers are: aws.".red
 end
@@ -417,38 +428,38 @@ has_errors=false
 begin
     if options['all']
         puts "Called all".green
-        test_config(server_name, conf)
+        test_config(server_name)
         confirmed = confirm("Are you sure you want to create server #{server_name}?", force)
         if confirmed
-            server = create_aws_server(connection, server_name, conf)
-            bootstrap_server(server, conf, force)
-            avst_cloud_tmp_folder = conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
-            provision_server(server, conf, avst_cloud_tmp_folder)
-            skip_clean = conf.get_config("skip_clean", false) || false
+            server = create_aws_server(connection, server_name)
+            bootstrap_server(server, force)
+            avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
+            provision_server(server, avst_cloud_tmp_folder)
+            skip_clean = @conf.get_config("skip_clean", false) || false
             unless skip_clean
-                post_provision_cleanup(server, conf, server_tmp_folder)
+                post_provision_cleanup(server, server_tmp_folder)
             end
         else
             puts "Not creating server, you have to confirm.".yellow
         end 
     elsif options['clean']
         puts "Called clean".green
-        avst_cloud_tmp_folder = conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
+        avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
         # In case it is default with timestamp remove all
         if (avst_cloud_tmp_folder =~ /\/tmp\/avst_cloud_tmp_/)
             avst_cloud_tmp_folder = "/tmp/avst_cloud_tmp_*"
         end
-        server = connect_to_server(connection, server_name, conf)
-        post_provision_cleanup(server, conf, avst_cloud_tmp_folder)
+        server = connect_to_server(connection, server_name)
+        post_provision_cleanup(server, avst_cloud_tmp_folder)
         puts "Clean done".green
     elsif options['test-config']
         do_not_log = true
-        test_config(server_name, conf)
+        test_config(server_name)
     elsif options['start']
         puts "Called start".green
         confirmed = confirm("Are you sure you want to create/start server #{server_name}?", force)
         if confirmed
-            server = create_aws_server(connection, server_name, conf)
+            server = create_aws_server(connection, server_name)
         else
             puts "Not starting server.".yellow
         end
@@ -456,7 +467,7 @@ begin
         puts "Called stop".green
         confirmed = confirm("Are you sure you want to stop server #{server_name}?", force)
         if confirmed
-            server = connect_to_server(connection, server_name, conf)
+            server = connect_to_server(connection, server_name)
             server.stop
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
@@ -471,7 +482,7 @@ begin
         puts "Called destroy".green
         confirmed = confirm("Are you sure you want to destroy server #{server_name}?", force)
         if confirmed 
-            server = connect_to_server(connection, server_name, conf)
+            server = connect_to_server(connection, server_name)
             server.destroy
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
@@ -480,13 +491,13 @@ begin
         end
     elsif options['provision']
         puts "Called provision".green
-        server = connect_to_server(connection, server_name, conf)
-        avst_cloud_tmp_folder = conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
-        provision_server(server, conf, avst_cloud_tmp_folder)
+        server = connect_to_server(connection, server_name)
+        avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
+        provision_server(server, avst_cloud_tmp_folder)
     elsif options['bootstrap']
         puts "Called bootstrap".green
-        server = connect_to_server(connection, server_name, conf)
-        bootstrap_server(server, conf, force)
+        server = connect_to_server(connection, server_name)
+        bootstrap_server(server, force)
         puts "Bootstrap done".green
     elsif options['find_server']
         do_not_log = true
@@ -497,7 +508,7 @@ begin
         abort("ERROR: Please provide a valid command".red)
     end
 
-    if service_config_yaml
+    if server_config_yaml
         # in case custom config was created clean the file afterwards
         File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write "".to_yaml }
     end
