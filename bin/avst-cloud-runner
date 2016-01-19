@@ -315,7 +315,7 @@ if server_config_url =~ URI::regexp
     
     if response.kind_of? Net::HTTPSuccess and response.body != ""
         begin
-            SERVER_CONFIG_yaml = YAML.load(response.body)
+            server_config_yaml = YAML.load(response.body)
         rescue YAML::ParserError => e
             abort("ERROR: Passed config is not a valid yaml. #{response.body}")
         end
@@ -340,18 +340,18 @@ if custom_config
         custom_config['client'] = splitted[0]
     end
     # for avst-cloud hiera config
-    if SERVER_CONFIG_yaml
-        SERVER_CONFIG_yaml = SERVER_CONFIG_yaml.merge custom_config
+    if server_config_yaml
+        server_config_yaml = server_config_yaml.merge custom_config
     else
-        SERVER_CONFIG_yaml = custom_config
+        server_config_yaml = custom_config
     end
 end
 
-if SERVER_CONFIG_yaml
-    File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write SERVER_CONFIG_yaml.to_yaml }
+if server_config_yaml
+    File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
     # as custom facts that will be passed to server 
     # must pass client, mapped_hostname, host_<application_type> or puppet will fail
-    File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write SERVER_CONFIG_yaml.to_yaml }
+    File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
 end
 
 force              = options["--force"]
@@ -508,7 +508,7 @@ begin
         abort("ERROR: Please provide a valid command".red)
     end
 
-    if SERVER_CONFIG_yaml
+    if server_config_yaml
         # in case custom config was created clean the file afterwards
         File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write "".to_yaml }
     end
