@@ -1,1 +1,5 @@
 Gemfile.lock
+config/hiera/custom_config.yaml
+config/keys
+files
+hiera.yaml

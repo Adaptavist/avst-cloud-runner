@@ -4,7 +4,7 @@ pre_upload_commands:
     - 'apt-get update && apt-get upgrade -o Dpkg::Options::="--force-confold" --force-overwrite -f -y'
     - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" --force-overwrite -f -y curl'
     - 'curl -sSL https://raw.github.com/adaptavist/rvm/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.25.33'
-    - 'source /usr/local/rvm/scripts/rvm; rvm install 2.0'
+    - 'source /usr/local/rvm/scripts/rvm; rvm install 2.0.0-p481'
     - 'echo "gem: --no-ri --no-rdoc" > ~/.gemrc'
     - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" -f -y git puppet-common puppet augeas-tools libaugeas-dev libaugeas-ruby unzip'
     - 'source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet -v 3.7.5'
