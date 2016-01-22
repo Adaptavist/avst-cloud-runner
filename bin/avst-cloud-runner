@@ -94,22 +94,20 @@ def remove_known_hosts_entry(matching, remove_it=true)
     end
 end
 
-def create_aws_server(connection, server_name)
-    
-    cloud_operating_system = @conf.get_config("cloud_operating_system")
-
+def get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, get_hdd_device_path=true)
     avst_cloud_config_service = @conf.get_config("avst_cloud_config_service", false) || @global_config['avst_cloud_config_service']
     avst_cloud_config_service_username = @conf.get_config("avst_cloud_config_service_username", false) || @global_config['avst_cloud_config_service_username']
     avst_cloud_config_service_password = @conf.get_config("avst_cloud_config_service_password", false) || @global_config['avst_cloud_config_service_password']
     avst_cloud_config_file = @conf.get_config("avst_cloud_config_file", false)
+    if get_hdd_device_path
+        hdd_device_path = @conf.get_config("hdd_device_path", false)
+    else
+        hdd_device_path = "/dev/sda1"
+    end
+    image_id = @conf.get_config("image_id", false)
 
-    hdd_device_path = @conf.get_config("hdd_device_path", false)
-    ami_image_id = @conf.get_config("ami_image_id", false)
-
-    unless hdd_device_path and ami_image_id
+    unless hdd_device_path and image_id
         if avst_cloud_config_service
-            provider = connection.provider
-            region = connection.region
             # def get_server_image_template(provider, operating_system, region)
             url = URI.parse("#{avst_cloud_config_service}/server_identifier")
             params = {"provider" => provider, "region" => region, "operating_system" => cloud_operating_system}
@@ -137,20 +135,39 @@ def create_aws_server(connection, server_name)
             end
             puts response.body.inspect
             resp = JSON.parse(response.body)
-            ami_image_id = ami_image_id || resp['image_name']
+            image_id = image_id || resp['image_name']
             hdd_device_path = root_device_path || resp['root_device_path']
         elsif avst_cloud_config_file
-            provider = connection.provider
-            region = connection.region
             file_config = YAML.load_file("#{avst_cloud_config_file}")
             if (file_config[provider][region] and file_config[provider][region] and file_config[provider][region][cloud_operating_system] and file_config[provider][region][cloud_operating_system]['image_name'])
-                ami_image_id = ami_image_id || file_config[provider][region][cloud_operating_system]['image_name']
+                image_id = image_id || file_config[provider][region][cloud_operating_system]['image_name']
             end
             if (file_config[provider][region] and file_config[provider][region] and file_config[provider][region][cloud_operating_system] and file_config[provider][region][cloud_operating_system]['root_device_path'])
                 hdd_device_path = hdd_device_path || file_config[provider][region][cloud_operating_system]['root_device_path']
             end
         end
     end
+    return image_id, hdd_device_path
+end
+
+
+def create_rackspace_server(connection, server_name)
+    puts "Creating server #{server_name} on Rackspace."
+    cloud_operating_system = @conf.get_config("cloud_operating_system")
+    provider = connection.provider
+    region = connection.region
+    flavor_id = @conf.get_config("flavor_id", false) || 4
+    image_id, hdd_device_path = get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, false)
+    connection.create_server(server_name, image_id, flavor_id) 
+end
+
+def create_aws_server(connection, server_name)
+    puts "Creating server #{server_name} on AWS."
+    cloud_operating_system = @conf.get_config("cloud_operating_system")
+    provider = connection.provider
+    region = connection.region
+
+    ami_image_id, hdd_device_path = get_image_id_and_hdd_device_path(provider, region, cloud_operating_system)
     
     mould                  = @conf.get_config("mould")
     key_name               = @conf.get_config("aws_key_name")
@@ -228,14 +245,20 @@ def post_provision_cleanup(server, server_tmp_folder)
     server.post_provisioning_cleanup(custom_cleanup_commands, os, remote_server_debug, server_tmp_folder)
 end
 
-def connect_to_server(connection, server_name)
+def connect_to_server(connection, server_name, requires_root_access=true)
     os = @conf.get_config('cloud_operating_system')
     provider = @conf.get_config('provider')
+    root_user = @conf.get_config('root_user', false)
+    root_password = nil
     case provider
-    when "aws"
-        # defaults based on os
-        root_user = @conf.get_config('root_user', false) || nil
-        root_password = @conf.get_config('aws_ssh_key')
+    when 'aws'
+        if requires_root_access
+            root_password = @conf.get_config('aws_ssh_key')
+        end
+    when 'rackspace'
+        if requires_root_access
+            root_password = @conf.get_config('root_password')
+        end
     else
         raise "ERROR: Currently supported providers are: aws.".red
     end
@@ -249,31 +272,33 @@ def test_config(server_name)
     env                 = splitted[1].gsub(/\d+/, '')
     server_number       = splitted[1].gsub(/[^\d]+/, '')
 
+    puts "Called test-config for #{server_name}".green
+    puts "Provider:            #{@conf.get_config('provider')}"
+    puts "Provider user:       #{@conf.get_config('provider_username')}"
+    puts "Provider pass:       #{@conf.get_config('provider_password')}"
+    puts "Domain:              #{@conf.get_config('domain', false)}"
+    puts "Customer short code: #{customer_short_code}"
+    puts "Environment:         #{env}"
+    puts "Server number:       #{server_number}"
+    puts "Operating system:    #{@conf.get_config('cloud_operating_system')}"
+    puts "eyaml private key:   #{@conf.hiera.config[:eyaml][:pkcs7_private_key]}"
+    puts "eyaml public key:    #{@conf.hiera.config[:eyaml][:pkcs7_public_key]}"
+    puts "Git repo:            #{@conf.get_config('git', false)}"
+    puts "Branch:              #{@conf.get_config('branch', false)}"
+    puts "Tag reference:       #{@conf.get_config('reference', false)}"
     case provider
     when 'aws'
-        
-        puts "Called test-config for #{server_name}".green
-        puts "Provider:            #{@conf.get_config('provider')}"
-        puts "Provider user:       #{@conf.get_config('provider_username')}"
-        puts "Provider pass:       #{@conf.get_config('provider_password')}"
-        puts "eyaml private key:   #{@conf.hiera.config[:eyaml][:pkcs7_private_key]}"
-        puts "eyaml public key:    #{@conf.hiera.config[:eyaml][:pkcs7_public_key]}"
+        puts "Region:              #{@conf.get_config('region', false) || @global_config['region']}"
         puts "Connection SSH key   #{@conf.get_config('aws_ssh_key')}"
-        puts "Domain:              #{@conf.get_config('domain', false)}"
-        puts "Customer short code: #{customer_short_code}"
-        puts "Environment:         #{env}"
-        puts "Mould:               #{@conf.get_config('mould')}"
-        puts "Operating system:    #{@conf.get_config('cloud_operating_system')}"
-        puts "Region:              #{@conf.get_config('region')}"
         puts "Subnet id:           #{@conf.get_config("aws_subnet_id", false)}"
         puts "Security group ids:  #{@conf.get_config("aws_security_group_ids", false)}"
         puts "Availability zone:   #{@conf.get_config("aws_availability_zone", false)}"
-        puts "Git repo:            #{@conf.get_config('git', false)}"
-        puts "Branch:              #{@conf.get_config('branch', false)}"
-        puts "Tag reference:       #{@conf.get_config('reference', false)}"
         puts "AWS ebs size:        #{@conf.get_config('ebs_size', false)} G"
+    when 'rackspace'
+        puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
+        puts "Root password:       #{@conf.get_config('root_password', false)}"
     else
-        raise "ERROR: Currently supported providers are: aws.".red
+        raise "ERROR: Currently supported providers are: aws and rackspace.".red
     end
 end
 
@@ -407,22 +432,33 @@ unless do_not_log
     confl_logger = ConfluenceReporter::Reporter.new(conf_base_url, conf_user, conf_pass) 
 end
 
+provider_user = @conf.get_config("provider_username", false) || @global_config['provider_username']
+provider_pass = @conf.get_config("provider_password", false) || @global_config['provider_password']
+
+unless provider_user and provider_pass
+    raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}"
+end
+
 case provider
-when "aws"
-    provider_user = @conf.get_config("provider_username", false) || @global_config['provider_username']
-    provider_pass = @conf.get_config("provider_password", false) || @global_config['provider_password']
+when 'aws'
     region = @conf.get_config("region", false) || @global_config['region']
-    unless provider_user and provider_pass and region
-        raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}, Region #{region}"
+    unless provider_user and provider_pass
+        raise "Please provide provider credentials and region. Provided: Region #{region}"
     end
     connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
     AvstCloud::AwsConnection.logger = confl_logger
     AvstCloud::AwsServer.logger = confl_logger
-    AvstCloud::SshCommandTask.logger = confl_logger
-    AvstCloud::ScpTask.logger = confl_logger
+when 'rackspace'
+    region = @conf.get_config("region", false) || @global_config['region'] || :lon
+    connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
+    AvstCloud::RackspaceConnection.logger = confl_logger
+    AvstCloud::RackspaceServer.logger = confl_logger
 else
-    raise "ERROR: Currently supported providers are: aws.".red
+    raise "ERROR: Currently supported providers are: aws and rackspace.".red
 end
+
+AvstCloud::SshCommandTask.logger = confl_logger
+AvstCloud::ScpTask.logger = confl_logger
 
 has_errors=false
 begin
@@ -431,7 +467,12 @@ begin
         test_config(server_name)
         confirmed = confirm("Are you sure you want to create server #{server_name}?", force)
         if confirmed
-            server = create_aws_server(connection, server_name)
+            case provider
+            when 'aws'
+               server = create_aws_server(connection, server_name)
+            when 'rackspace'
+                server = create_rackspace_server(connection, server_name)
+            end
             bootstrap_server(server, force)
             avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
             provision_server(server, avst_cloud_tmp_folder)
@@ -459,7 +500,8 @@ begin
         puts "Called start".green
         confirmed = confirm("Are you sure you want to create/start server #{server_name}?", force)
         if confirmed
-            server = create_aws_server(connection, server_name)
+            server = connect_to_server(connection, server_name, false)
+            server.start
         else
             puts "Not starting server.".yellow
         end
@@ -467,7 +509,9 @@ begin
         puts "Called stop".green
         confirmed = confirm("Are you sure you want to stop server #{server_name}?", force)
         if confirmed
-            server = connect_to_server(connection, server_name)
+            # Rackspace stop of server is done via ssh command execution as it does not supports stop
+            requires_root_access = provider == 'rackspace' ? true : false
+            server = connect_to_server(connection, server_name, requires_root_access)
             server.stop
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
@@ -482,7 +526,7 @@ begin
         puts "Called destroy".green
         confirmed = confirm("Are you sure you want to destroy server #{server_name}?", force)
         if confirmed 
-            server = connect_to_server(connection, server_name)
+            server = connect_to_server(connection, server_name, false)
             server.destroy
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)

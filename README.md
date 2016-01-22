@@ -43,7 +43,7 @@ Supported options are
 
 ## Minimal Configuration
 
-To be able to start Jira 6.4.11 on Ubuntu 14 on AWS (check other details in global.yaml), you have to provide:
+To be able to start Jira 6.4.11 on Ubuntu 14 on AWS (check other details in global.eyaml), you have to provide:
 
 ### global.eyaml setup
 
@@ -134,6 +134,10 @@ On Aws you must also set aws_availability_zone, aws_ebs_size (can be nil), aws_k
 - Default is nil, can identify git tag to load
 
 For more details and options check config/hiera/global.eyaml
+
+### **Rackspace** setup
+
+Check config/hiera/global.eyaml for example Rackspace setup. You have to provide Rackspace credentials, image_id, flavor_id for your instance. If you are running one of the commands bootstrap, provision, stop, you have to provide root_password for your server.
 
 ## Usage
 

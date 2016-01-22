@@ -4,7 +4,7 @@ pre_upload_commands:
     - yum -y update
     - yum install -y curl
     - curl -sSL https://raw.github.com/adaptavist/rvm/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.25.33
-    - source /usr/local/rvm/scripts/rvm; rvm install 2.0
+    - source /usr/local/rvm/scripts/rvm; rvm install 2.0.0-p481
     - 'echo "gem: --no-ri --no-rdoc" > ~/.gemrc'
     - 'yum install -y git puppet-common puppet augeas-devel augeas unzip'
     - source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet -v 3.7.5 
@@ -27,14 +27,24 @@ pre_upload_commands:
     - chmod -R 0500 /var/opt/puppet/secure/keys
 
 custom_file_uploads:
+    <% unless as_user == 'root' %>
     "files/id_rsa": <%="/home/#{as_user}/.ssh/."%>
     "files/known_hosts": <%="/home/#{as_user}/.ssh/."%>
+    <%else%>
+    "files/id_rsa": <%="/root/.ssh/."%>
+    "files/known_hosts": <%="/root/.ssh/."%>
+    <%end%>
     "config/keys/private_key.pkcs7.pem": "/tmp/."
     "config/keys/public_key.pkcs7.pem": "/tmp/."
 
 post_upload_commands:
     - "mv /tmp/private_key.pkcs7.pem /var/opt/puppet/secure/keys/."
     - "mv /tmp/public_key.pkcs7.pem /var/opt/puppet/secure/keys/."
-    - <%= "chmod 0600 /home/#{as_user}.ssh/known_hosts" %>
+    <% unless as_user == 'root' %>
+    - <%= "chmod 0600 /home/#{as_user}/.ssh/known_hosts" %>
     - <%= "chmod 0600 /home/#{as_user}/.ssh/id_rsa" %>
+    <%else%>
+    - <%= "chmod 0600 /root/.ssh/known_hosts" %>
+    - <%= "chmod 0600 /root/.ssh/id_rsa" %>
+    <%end%>
 

@@ -60,3 +60,35 @@ custom_cleanup_commands:
 # Custom bootstrap file
 # custom_bootstrap_script: 'config/bootstrap/custom.sh.erb'
 
+
+# --------Rackspace example
+
+# provider: "rackspace"
+# provider_username: ''
+# provider_password: ''
+# 
+# image_id: '' # Rackspace image id
+# domain: 'example.com'
+# root_password: '' # must be provided for bootstrap, provision and stop commands while running individualy
+# cloud_operating_system: "centos-7"
+
+# Flavor_id options:
+# "2" = "512MB-standard"
+# "3" = "1GB-standard"
+# "4" = "2GB-standard"
+# "5" = "4GB-standard"
+# "6" = "8GB-standard"
+# "7" = "15GB-standard"
+# "8" = "30GB-standard"
+# "performance1-1" = "1GB-performance"
+# "performance1-2" = "2GB-performance"
+# "performance1-4" = "4GB-performance"
+# "performance1-8" = "8GB-performance"
+# "performance2-15" = "15GB-performance"
+# "performance2-30" = "30GB-performance"
+# "performance2-60" = "60GB-performance"
+# "performance2-90" = "90GB-performance"
+# "performance2-120" = "120GB-performance"
+# flavor_id: 4
+
+# The rest is the same as in aws example
