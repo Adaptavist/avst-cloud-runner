@@ -139,18 +139,31 @@ For more details and options check config/hiera/global.eyaml
 
 Check config/hiera/global.eyaml for example Rackspace setup. You have to provide Rackspace credentials, image_id, flavor_id for your instance. If you are running one of the commands bootstrap, provision, stop, you have to provide root_password for your server.
 
+### Provider none setup
+
+Lets say you have already running server and it is not on provider avst-cloud supports. You are able to run bootstrap and provision commands with the same setup as on supported providers. 
+
+Required parameters:
+
+* provider: 'none'
+* root_user: 'access_user_name_with_sudo'
+* root_password: ''
+* ip_address: 'ip_or_connection_url'
+
+
+
 ## Usage
 
 ```
 Adaptavist Cloud Runner
 
 Usage:
-  avst-cloud-runner <server-name> (all|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
+  avst-cloud-runner <server-name> (all|create|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
                                [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report]
                              [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
-  avst-cloud-runner (all|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner -h | --help
 
 Options:
@@ -163,7 +176,6 @@ Options:
   -s SERVER_CONFIG_URL --server_config_url SERVER_CONFIG_URL url to retrieve avst-cloud configuration for the server
   -u SERVER_CONFIG_URL_USERNAME --server_config_url_username SERVER_CONFIG_URL_USERNAME username to use to retireve avst-cloud configuration for the server
   -p SERVER_CONFIG_URL_PASSWORD --server_config_url_password SERVER_CONFIG_URL_PASSWORD password for username to retrieve avst-cloud configuration for the server
-
 Arguments:
   server-name   Must be in the format: {customer_shortcode}-{env}{server_id}
                 The customer_shortcode and environment may contain
@@ -171,18 +183,22 @@ Arguments:
 
 Commands:
   all           Runs the following commands: start, bootstrap, provision
-  start         Create a new server on the provider. Does not bootstrap or
+  create        Creates a server, is stopped will start it. Without bootstrap os provision
+  start         Start a server on the provider. Does not bootstrap or
                 provision the machine
   bootstrap     Installs required dependencies for provisioning. (RVM, Ruby,
                 Puppet, Git, Hiera, Eyaml...)
                 This MUST be run before the provision command
   provision     Provisions server using Puppet and Capistrano based on the
                 repository specified in hiera
+  clean         Runs clean commands on the server, by default gathers system stats. 
+                Can pass custom commands to run. 
   status        Checks and prints a servers status
   stop          Shuts down a server but does not destroy it. (Not available
                 for Rackspace provider)
   destroy       Shuts down a server and destroys it
   test-config   Checks and prints configuration
+
 ```
 
 Server name must comply to "{customer_short_code}-{env}{server_number}" - see customer [short code and naming conventions](https://i.adaptavist.com/display/INFRA/Naming+conventions).
@@ -191,6 +207,8 @@ Server name must comply to "{customer_short_code}-{env}{server_number}" - see cu
 
  - all 
     - starts, bootstraps and provisions
+ - create
+    - Creates a server, is stopped will start it. Without bootstrap os provision
  - status
     - print out the status of a server
  - start 
