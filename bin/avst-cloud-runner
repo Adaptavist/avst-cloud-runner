@@ -136,7 +136,7 @@ def get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, g
             puts response.body.inspect
             resp = JSON.parse(response.body)
             image_id = image_id || resp['image_name']
-            hdd_device_path = root_device_path || resp['root_device_path']
+            hdd_device_path = hdd_device_path || resp['root_device_path']
         elsif avst_cloud_config_file
             file_config = YAML.load_file("#{avst_cloud_config_file}")
             if (file_config[provider][region] and file_config[provider][region] and file_config[provider][region][cloud_operating_system] and file_config[provider][region][cloud_operating_system]['image_name'])
