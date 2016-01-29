@@ -478,7 +478,7 @@ begin
             provision_server(server, avst_cloud_tmp_folder)
             skip_clean = @conf.get_config("skip_clean", false) || false
             unless skip_clean
-                post_provision_cleanup(server, server_tmp_folder)
+                post_provision_cleanup(server, avst_cloud_tmp_folder)
             end
         else
             puts "Not creating server, you have to confirm.".yellow
