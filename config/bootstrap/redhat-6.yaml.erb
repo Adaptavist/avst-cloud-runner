@@ -27,14 +27,22 @@ pre_upload_commands:
     - chmod -R 0500 /var/opt/puppet/secure/keys
 
 custom_file_uploads:
+    <% unless as_user == 'root' %>
     "files/id_rsa": <%="/home/#{as_user}/.ssh/."%>
     "files/known_hosts": <%="/home/#{as_user}/.ssh/."%>
+    <%end%>
+    "files/id_rsa": <%="/root/.ssh/."%>
+    "files/known_hosts": <%="/root/.ssh/."%>
     "config/keys/private_key.pkcs7.pem": "/tmp/."
     "config/keys/public_key.pkcs7.pem": "/tmp/."
 
 post_upload_commands:
     - "mv /tmp/private_key.pkcs7.pem /var/opt/puppet/secure/keys/."
     - "mv /tmp/public_key.pkcs7.pem /var/opt/puppet/secure/keys/."
-    - <%= "chmod 0600 /home/#{as_user}.ssh/known_hosts" %>
+    <% unless as_user == 'root' %>
+    - <%= "chmod 0600 /home/#{as_user}/.ssh/known_hosts" %>
     - <%= "chmod 0600 /home/#{as_user}/.ssh/id_rsa" %>
+    <%end%>
+    - <%= "chmod 0600 /root/.ssh/known_hosts" %>
+    - <%= "chmod 0600 /root/.ssh/id_rsa" %>
 

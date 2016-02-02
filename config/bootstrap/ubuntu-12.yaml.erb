@@ -17,10 +17,9 @@ pre_upload_commands:
     - <%="chmod 700 #{ssh_dir}"%>
     - groupadd admin
     - <%="usermod -a -G admin #{as_user}"%>
-<%else%>
+<%end%>
     - 'mkdir /root/.ssh'
     - 'chmod 700 /root/.ssh'
-<%end%>
     - mkdir -p /var/opt/puppet/secure/keys
     - '<%="chown #{as_user}: /var/opt/puppet"%>'
     - chmod -R 0500 /var/opt/puppet/secure/keys
@@ -29,10 +28,9 @@ custom_file_uploads:
 <% unless as_user == 'root' %>
     "files/id_rsa": <%="/home/#{as_user}/.ssh/."%>
     "files/known_hosts": <%="/home/#{as_user}/.ssh/."%>
-<%else%>
+<%end%>
     "files/id_rsa": <%="/tmp/."%>
     "files/known_hosts": <%="/tmp/."%>
-<%end%>
     "config/keys/private_key.pkcs7.pem": "/tmp/."
     "config/keys/public_key.pkcs7.pem": "/tmp/."
 
@@ -42,9 +40,8 @@ post_upload_commands:
 <% unless as_user == 'root' %>
     - <%= "chmod 0600 /home/#{as_user}/.ssh/known_hosts" %>
     - <%= "chmod 0600 /home/#{as_user}/.ssh/id_rsa" %>
-<%else%>
+<%end%>
     - "mv /tmp/known_hosts /root/.ssh/."
     - "mv /tmp/id_rsa /root/.ssh/."
     - "chmod 0600 /root/.ssh/known_hosts"
     - "chmod 0600 /root/.ssh/id_rsa"
-<%end%>

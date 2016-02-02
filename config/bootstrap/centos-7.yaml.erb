@@ -30,10 +30,9 @@ custom_file_uploads:
     <% unless as_user == 'root' %>
     "files/id_rsa": <%="/home/#{as_user}/.ssh/."%>
     "files/known_hosts": <%="/home/#{as_user}/.ssh/."%>
-    <%else%>
+    <%end%>
     "files/id_rsa": <%="/root/.ssh/."%>
     "files/known_hosts": <%="/root/.ssh/."%>
-    <%end%>
     "config/keys/private_key.pkcs7.pem": "/tmp/."
     "config/keys/public_key.pkcs7.pem": "/tmp/."
 
@@ -43,8 +42,7 @@ post_upload_commands:
     <% unless as_user == 'root' %>
     - <%= "chmod 0600 /home/#{as_user}/.ssh/known_hosts" %>
     - <%= "chmod 0600 /home/#{as_user}/.ssh/id_rsa" %>
-    <%else%>
+    <%end%>
     - <%= "chmod 0600 /root/.ssh/known_hosts" %>
     - <%= "chmod 0600 /root/.ssh/id_rsa" %>
-    <%end%>
 
