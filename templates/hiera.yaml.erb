@@ -4,7 +4,7 @@
   - eyaml
 
 :hierarchy:
-  - custom_config
+  <%=custom_config_per_run ? "- #{custom_config_per_run}" : "" %>
   - "%{::customer_short_code}/%{::env}/%{::server_name}"
   - "%{::customer_short_code}/%{::env}"
   - "%{::customer_short_code}"

@@ -372,8 +372,11 @@ if custom_config
     end
 end
 
+custom_config_per_run = nil
 if server_config_yaml
-    File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
+    custom_config_per_run = "custom_config_#{Time.now.to_i}"
+    custom_config_per_run_file = "config/hiera/#{custom_config_per_run}.yaml"
+    File.open(custom_config_per_run_file, 'w') {|f| f.write server_config_yaml.to_yaml }
     # as custom facts that will be passed to server 
     # must pass client, mapped_hostname, host_<application_type> or puppet will fail
     File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
@@ -401,7 +404,7 @@ server_number       = splitted[1].gsub(/[^\d]+/, '')
 scope = {
   "::server_name"         => server_name,
   "::env"                 => env,
-  "::customer_short_code" => customer_short_code
+  "::customer_short_code" => customer_short_code,
 }
 
 # create fully qualified hiera.yaml based on template, to be able to refer to config/hiera
@@ -409,7 +412,7 @@ unless hiera_config
     hiera_config = "#{avst_cloud_base}/hiera.yaml"
     hiera_config_template = File.read("#{avst_cloud_base}/templates/hiera.yaml.erb")
     File.open("#{hiera_config}", 'w') do |f|
-        f.write ERB.new(hiera_config_template).result(binding)
+        f.write ERB.new(hiera_config_template, nil, '%<>-').result(binding)
     end
 end
 
@@ -552,11 +555,6 @@ begin
         abort("ERROR: Please provide a valid command".red)
     end
 
-    if server_config_yaml
-        # in case custom config was created clean the file afterwards
-        File.open('config/hiera/custom_config.yaml', 'w') {|f| f.write "".to_yaml }
-    end
-
 # In case something went wrong on the way
 rescue Exception => e
     message = e.message.force_encoding("utf-8")
@@ -565,6 +563,10 @@ rescue Exception => e
         connection.logger.error(err)
     end
     has_errors=true
+end
+
+if custom_config_per_run
+    File.delete(custom_config_per_run_file)
 end
 
 unless do_not_log
