@@ -38,11 +38,15 @@ post_upload_commands:
     <% unless as_user == 'root' %>
     - <%= "cp /tmp/known_hosts /home/#{as_user}/.ssh/known_hosts" %>
     - <%= "cp /tmp/id_rsa /home/#{as_user}/.ssh/id_rsa" %>
+    - '<%="chown #{as_user}: /home/#{as_user}/.ssh/known_hosts" %>'
+    - '<%="chown #{as_user}: /home/#{as_user}/.ssh/id_rsa" %>'
     - <%= "chmod 0600 /home/#{as_user}/.ssh/known_hosts" %>
     - <%= "chmod 0600 /home/#{as_user}/.ssh/id_rsa" %>
     <%end%>
     - "mv /tmp/id_rsa /root/.ssh/."
     - "mv /tmp/known_hosts /root/.ssh/."
+    - "chown root: /root/.ssh/known_hosts"
+    - "chown root: /root/.ssh/id_rsa"
     - <%= "chmod 0600 /root/.ssh/known_hosts" %>
     - <%= "chmod 0600 /root/.ssh/id_rsa" %>
 
