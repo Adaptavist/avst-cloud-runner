@@ -128,10 +128,10 @@ def get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, g
                 case response
                 when Net::HTTPSuccess     then response.body
                 else
-                    abort "#{response.body} #{response.code.to_s}"
+                    raise "#{response.body} #{response.code.to_s}"
                 end
             rescue Errno::ECONNREFUSED
-                abort "ERROR: Connection refused while trying to connect to #{avst_cloud_config_service}/server_identifier"
+                raise "ERROR: Connection refused while trying to connect to #{avst_cloud_config_service}/server_identifier"
             end
             puts response.body.inspect
             resp = JSON.parse(response.body)
@@ -193,7 +193,7 @@ def bootstrap_server(server, force)
     eyaml_public_key  = @conf.hiera.config[:eyaml][:pkcs7_public_key]
 
     unless File.exists?(eyaml_private_key) && File.exists?(eyaml_public_key)
-        abort("ERROR: Please ensure the eyaml public and private keys are configured and exist".red)
+        raise ("ERROR: Please ensure the eyaml public and private keys are configured and exist".red)
     end
 
     os                 = @conf.get_config('cloud_operating_system')
@@ -314,157 +314,157 @@ end
 if File.exists? ("#{ENV['HOME']}/.avst-cloud.yaml")
     @global_config = YAML.load(File.read("#{ENV['HOME']}/.avst-cloud.yaml"))
 end
-
-server_config_url = options["--server_config_url"]
-if server_config_url =~ URI::regexp
-    # in case it is url download the config
-    url = URI.parse("#{server_config_url}")
-    req = Net::HTTP::Get.new(url.request_uri)
-    server_config_username = options["--server_config_url_username"] || @global_config['server_config_url_username']
-    server_config_password = options["--server_config_url_password"] || @global_config['server_config_url_password']
-    if server_config_username and server_config_password
-        # setup auth
-        req.basic_auth server_config_username, server_config_password
-    else
-        puts "service config provided but --server_config_url_username and --server_config_url_password missing, trying withouth auth."
-    end
-
-    use_ssl = false
-    if url.instance_of? URI::HTTPS
-        use_ssl = true
-    end
-    response = Net::HTTP.start(url.host, url.port, use_ssl: use_ssl) { |http| http.request(req) }
-
-    # we expect yaml file that represents avst-cloud configuration
-    # store it to custom_config
-    
-    if response.kind_of? Net::HTTPSuccess and response.body != ""
-        begin
-            server_config_yaml = YAML.load(response.body)
-        rescue YAML::ParserError => e
-            abort("ERROR: Passed config is not a valid yaml. #{response.body}")
-        end
-    else
-        abort("Configuration via service not found: #{server_config_url}")
-    end
-end
-
-custom_config = options["--custom_config"]
-# create custom config in case it is defined
-if custom_config
-    begin
-        custom_config = JSON.parse(custom_config)
-    rescue JSON::ParserError => e
-        abort("ERROR: Passed config is not a valid json. #{custom_config}")
-    end
-    server_name = custom_config['server_name']
-    unless server_name and (/^\w+-\w+\d+$/ =~ server_name.downcase)
-       puts("WARN: Valid server_name not provided in custom_config, Will try options... See the help for details".yellow)    
-    else
-        splitted = server_name.split("-")
-        custom_config['client'] = splitted[0]
-    end
-    # for avst-cloud hiera config
-    if server_config_yaml
-        server_config_yaml = server_config_yaml.merge custom_config
-    else
-        server_config_yaml = custom_config
-    end
-end
-
-custom_config_per_run = nil
-if server_config_yaml
-    custom_config_per_run = "custom_config_#{Time.now.to_i}"
-    custom_config_per_run_file = "config/hiera/#{custom_config_per_run}.yaml"
-    File.open(custom_config_per_run_file, 'w') {|f| f.write server_config_yaml.to_yaml }
-    # as custom facts that will be passed to server 
-    # must pass client, mapped_hostname, host_<application_type> or puppet will fail
-    File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
-end
-
-force              = options["--force"]
-do_not_log         = options["--no-report"]
-remove_known_hosts = options["--remove-known-hosts"]
-hiera_config       = options["--hiera_config"]
-
-unless server_name
-    # Validation
-    unless options["<server-name>"] and (/^\w+-\w+\d+$/ =~ options["<server-name>"].downcase)
-        abort("ERROR: Please provide a valid server name. See the help for details".red)
-    end
-    server_name = options["<server-name>"].downcase
-end
-
-# Configuration checking
-splitted            = server_name.split("-")
-customer_short_code = splitted[0]
-env                 = splitted[1].gsub(/\d+/, '')
-server_number       = splitted[1].gsub(/[^\d]+/, '')
-
-scope = {
-  "::server_name"         => server_name,
-  "::env"                 => env,
-  "::customer_short_code" => customer_short_code,
-}
-
-# create fully qualified hiera.yaml based on template, to be able to refer to config/hiera
-unless hiera_config
-    hiera_config = "#{avst_cloud_base}/hiera.yaml"
-    hiera_config_template = File.read("#{avst_cloud_base}/templates/hiera.yaml.erb")
-    File.open("#{hiera_config}", 'w') do |f|
-        f.write ERB.new(hiera_config_template, nil, '%<>-').result(binding)
-    end
-end
-
-@conf = HieraLoader.new(scope, hiera_config)
-
-# parse conf from hiera
-provider = @conf.get_config("provider").downcase
-
-do_not_log = do_not_log || ( @conf.get_config("no_report", false) == 'true')
-unless do_not_log
-    puts "Setting confluence logger as default logger".green
-    conf_base_url        = @conf.get_config("confluence_url", false) || @global_config['confluence_url']
-    conf_user            = @conf.get_config("confluence_user", false) || @global_config['confluence_user']
-    conf_pass            = @conf.get_config("confluence_access_password", false) || @global_config['confluence_access_password']
-    conf_space           = @conf.get_config("confluence_space", false) || @global_config['confluence_space']
-    conf_parrent_page_id = @conf.get_config("confluence_parent_page_id", false) || @global_config['confluence_parent_page_id']
-    unless conf_base_url and conf_user and conf_pass and conf_space and conf_parrent_page_id
-        raise "Please provide confluence reporter configuration. Provided: URL: #{conf_base_url} User: #{conf_user} Pass: #{conf_pass} Space #{conf_space} Page_id #{conf_parrent_page_id}"
-    end
-    confl_logger = ConfluenceReporter::Reporter.new(conf_base_url, conf_user, conf_pass) 
-end
-
-provider_user = @conf.get_config("provider_username", false) || @global_config['provider_username']
-provider_pass = @conf.get_config("provider_password", false) || @global_config['provider_password']
-
-unless provider_user and provider_pass
-    raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}"
-end
-
-case provider
-when 'aws'
-    region = @conf.get_config("region", false) || @global_config['region']
-    unless provider_user and provider_pass
-        raise "Please provide provider credentials and region. Provided: Region #{region}"
-    end
-    connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
-    AvstCloud::AwsConnection.logger = confl_logger
-    AvstCloud::AwsServer.logger = confl_logger
-when 'rackspace'
-    region = @conf.get_config("region", false) || @global_config['region'] || :lon
-    connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
-    AvstCloud::RackspaceConnection.logger = confl_logger
-    AvstCloud::RackspaceServer.logger = confl_logger
-else
-    raise "ERROR: Currently supported providers are: aws and rackspace.".red
-end
-
-AvstCloud::SshCommandTask.logger = confl_logger
-AvstCloud::ScpTask.logger = confl_logger
-
-has_errors=false
 begin
+    server_config_url = options["--server_config_url"]
+    if server_config_url =~ URI::regexp
+        # in case it is url download the config
+        url = URI.parse("#{server_config_url}")
+        req = Net::HTTP::Get.new(url.request_uri)
+        server_config_username = options["--server_config_url_username"] || @global_config['server_config_url_username']
+        server_config_password = options["--server_config_url_password"] || @global_config['server_config_url_password']
+        if server_config_username and server_config_password
+            # setup auth
+            req.basic_auth server_config_username, server_config_password
+        else
+            puts "service config provided but --server_config_url_username and --server_config_url_password missing, trying withouth auth."
+        end
+
+        use_ssl = false
+        if url.instance_of? URI::HTTPS
+            use_ssl = true
+        end
+        response = Net::HTTP.start(url.host, url.port, use_ssl: use_ssl) { |http| http.request(req) }
+
+        # we expect yaml file that represents avst-cloud configuration
+        # store it to custom_config
+        
+        if response.kind_of? Net::HTTPSuccess and response.body != ""
+            begin
+                server_config_yaml = YAML.load(response.body)
+            rescue YAML::ParserError => e
+                raise ("ERROR: Passed config is not a valid yaml. #{response.body}")
+            end
+        else
+            raise ("Configuration via service not found: #{server_config_url}")
+        end
+    end
+
+    custom_config = options["--custom_config"]
+    # create custom config in case it is defined
+    if custom_config
+        begin
+            custom_config = JSON.parse(custom_config)
+        rescue JSON::ParserError => e
+            raise ("ERROR: Passed config is not a valid json. #{custom_config}")
+        end
+        server_name = custom_config['server_name']
+        unless server_name and (/^\w+-\w+\d+$/ =~ server_name.downcase)
+           puts("WARN: Valid server_name not provided in custom_config, Will try options... See the help for details".yellow)    
+        else
+            splitted = server_name.split("-")
+            custom_config['client'] = splitted[0]
+        end
+        # for avst-cloud hiera config
+        if server_config_yaml
+            server_config_yaml = server_config_yaml.merge custom_config
+        else
+            server_config_yaml = custom_config
+        end
+    end
+
+    custom_config_per_run = nil
+    if server_config_yaml
+        custom_config_per_run = "custom_config_#{Time.now.to_i}"
+        custom_config_per_run_file = "config/hiera/#{custom_config_per_run}.yaml"
+        File.open(custom_config_per_run_file, 'w') {|f| f.write server_config_yaml.to_yaml }
+        # as custom facts that will be passed to server 
+        # must pass client, mapped_hostname, host_<application_type> or puppet will fail
+        File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
+    end
+
+    force              = options["--force"]
+    do_not_log         = options["--no-report"]
+    remove_known_hosts = options["--remove-known-hosts"]
+    hiera_config       = options["--hiera_config"]
+
+    unless server_name
+        # Validation
+        unless options["<server-name>"] and (/^\w+-\w+\d+$/ =~ options["<server-name>"].downcase)
+            raise ("ERROR: Please provide a valid server name. See the help for details".red)
+        end
+        server_name = options["<server-name>"].downcase
+    end
+
+    # Configuration checking
+    splitted            = server_name.split("-")
+    customer_short_code = splitted[0]
+    env                 = splitted[1].gsub(/\d+/, '')
+    server_number       = splitted[1].gsub(/[^\d]+/, '')
+
+    scope = {
+      "::server_name"         => server_name,
+      "::env"                 => env,
+      "::customer_short_code" => customer_short_code,
+    }
+
+    # create fully qualified hiera.yaml based on template, to be able to refer to config/hiera
+    unless hiera_config
+        hiera_config = "#{avst_cloud_base}/hiera.yaml"
+        hiera_config_template = File.read("#{avst_cloud_base}/templates/hiera.yaml.erb")
+        File.open("#{hiera_config}", 'w') do |f|
+            f.write ERB.new(hiera_config_template, nil, '%<>-').result(binding)
+        end
+    end
+
+    @conf = HieraLoader.new(scope, hiera_config)
+
+    # parse conf from hiera
+    provider = @conf.get_config("provider").downcase
+
+    do_not_log = do_not_log || ( @conf.get_config("no_report", false) == 'true')
+    unless do_not_log
+        puts "Setting confluence logger as default logger".green
+        conf_base_url        = @conf.get_config("confluence_url", false) || @global_config['confluence_url']
+        conf_user            = @conf.get_config("confluence_user", false) || @global_config['confluence_user']
+        conf_pass            = @conf.get_config("confluence_access_password", false) || @global_config['confluence_access_password']
+        conf_space           = @conf.get_config("confluence_space", false) || @global_config['confluence_space']
+        conf_parrent_page_id = @conf.get_config("confluence_parent_page_id", false) || @global_config['confluence_parent_page_id']
+        unless conf_base_url and conf_user and conf_pass and conf_space and conf_parrent_page_id
+            raise "Please provide confluence reporter configuration. Provided: URL: #{conf_base_url} User: #{conf_user} Pass: #{conf_pass} Space #{conf_space} Page_id #{conf_parrent_page_id}"
+        end
+        confl_logger = ConfluenceReporter::Reporter.new(conf_base_url, conf_user, conf_pass) 
+    end
+
+    provider_user = @conf.get_config("provider_username", false) || @global_config['provider_username']
+    provider_pass = @conf.get_config("provider_password", false) || @global_config['provider_password']
+
+    unless provider_user and provider_pass
+        raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}"
+    end
+
+    case provider
+    when 'aws'
+        region = @conf.get_config("region", false) || @global_config['region']
+        unless provider_user and provider_pass
+            raise "Please provide provider credentials and region. Provided: Region #{region}"
+        end
+        connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
+        AvstCloud::AwsConnection.logger = confl_logger
+        AvstCloud::AwsServer.logger = confl_logger
+    when 'rackspace'
+        region = @conf.get_config("region", false) || @global_config['region'] || :lon
+        connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
+        AvstCloud::RackspaceConnection.logger = confl_logger
+        AvstCloud::RackspaceServer.logger = confl_logger
+    else
+        raise "ERROR: Currently supported providers are: aws and rackspace.".red
+    end
+
+    AvstCloud::SshCommandTask.logger = confl_logger
+    AvstCloud::ScpTask.logger = confl_logger
+
+    has_errors=false
+
     if options['all']
         puts "Called all".green
         test_config(server_name)
@@ -552,15 +552,19 @@ begin
         connection.find_server(server_name).inspect
     else
         do_not_log = true
-        abort("ERROR: Please provide a valid command".red)
+        raise ("ERROR: Please provide a valid command".red)
     end
 
 # In case something went wrong on the way
 rescue Exception => e
     message = e.message.force_encoding("utf-8")
-    connection.logger.error("Something went wrong: #{message}")
-    e.backtrace.each do |err|
-        connection.logger.error(err)
+    if connection
+        connection.logger.error("Something went wrong: #{message}")
+        e.backtrace.each do |err|
+            connection.logger.error(err)
+        end
+    else
+        puts "Something went wrong: #{message}"
     end
     has_errors=true
 end
@@ -572,7 +576,9 @@ end
 unless do_not_log
     puts "Reporting progress".green
     begin
-        connection.logger.report_event(server_name, conf_parrent_page_id, conf_space)
+        if connection
+            connection.logger.report_event(server_name, conf_parrent_page_id, conf_space)
+        end
     rescue Exception => e
         puts e.message.yellow
     end
