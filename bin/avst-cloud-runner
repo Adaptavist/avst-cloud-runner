@@ -22,6 +22,7 @@ require "net/http"
 require "uri"
 require 'yaml'
 require 'confluence_reporter'
+require 'etc'
 
 avst_cloud_base ="#{File.expand_path("../../", __FILE__)}"
 
@@ -176,8 +177,9 @@ def create_aws_server(connection, server_name)
     security_group_ids     = @conf.get_config("aws_security_group_ids")
     ebs_size               = @conf.get_config("aws_ebs_size", false)
     availability_zone      = @conf.get_config("aws_availability_zone")
-
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone)
+    vpc                    = @conf.get_config("aws_vpc", false)
+    created_by             = @conf.get_config("created_by", false) || Etc.getlogin
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, vpc, created_by)
 end
 
 def bootstrap_server(server, force)
@@ -293,7 +295,7 @@ def test_config(server_name)
         puts "Subnet id:           #{@conf.get_config("aws_subnet_id", false)}"
         puts "Security group ids:  #{@conf.get_config("aws_security_group_ids", false)}"
         puts "Availability zone:   #{@conf.get_config("aws_availability_zone", false)}"
-        puts "AWS ebs size:        #{@conf.get_config('ebs_size', false)} G"
+        puts "AWS ebs size:        #{@conf.get_config('aws_ebs_size', false)} G"
     when 'rackspace'
         puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:       #{@conf.get_config('root_password', false)}"
@@ -374,7 +376,7 @@ begin
 
     custom_config_per_run = nil
     if server_config_yaml
-        custom_config_per_run = "custom_config_#{Time.now.to_i}"
+        custom_config_per_run = "custom_config_#{Time.now.to_i}_#{[*('a'..'z')].shuffle[0,8].join}"
         custom_config_per_run_file = "config/hiera/#{custom_config_per_run}.yaml"
         File.open(custom_config_per_run_file, 'w') {|f| f.write server_config_yaml.to_yaml }
         # as custom facts that will be passed to server 
