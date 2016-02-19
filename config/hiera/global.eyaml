@@ -6,7 +6,12 @@ provider_password: ""
 
 ami_image_id: 'ami-c8208fbb' # ubu-14
 hdd_device_path: '/dev/sda1' #'/dev/xvda' for Centos
-domain: 
+domain: ''
+
+# In case provider is set to none, you can run provision and bootstrap commands, please provide following
+# root_password: ''
+# root_user: 'root'
+# ip_address: ''
 
 cloud_operating_system: "ubuntu-14"
 # cloud_operating_system: "ubuntu-12"

@@ -31,12 +31,12 @@ doc = <<DOCOPT
 Adaptavist Cloud Runner
 
 Usage:
-  avst-cloud-runner <server-name> (all|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
+  avst-cloud-runner <server-name> (all|create|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
                                [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report]
                              [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
-  avst-cloud-runner (all|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
   avst-cloud-runner -h | --help
 
 Options:
@@ -56,7 +56,8 @@ Arguments:
 
 Commands:
   all           Runs the following commands: start, bootstrap, provision
-  start         Create a new server on the provider. Does not bootstrap or
+  create        Creates a server, is stopped will start it. Without bootstrap os provision
+  start         Start a server on the provider. Does not bootstrap or
                 provision the machine
   bootstrap     Installs required dependencies for provisioning. (RVM, Ruby,
                 Puppet, Git, Hiera, Eyaml...)
@@ -134,7 +135,7 @@ def get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, g
             rescue Errno::ECONNREFUSED
                 raise "ERROR: Connection refused while trying to connect to #{avst_cloud_config_service}/server_identifier"
             end
-            puts response.body.inspect
+            @logger.debug(response.body.inspect)
             resp = JSON.parse(response.body)
             image_id = image_id || resp['image_name']
             hdd_device_path = hdd_device_path || resp['root_device_path']
@@ -153,7 +154,7 @@ end
 
 
 def create_rackspace_server(connection, server_name)
-    puts "Creating server #{server_name} on Rackspace."
+    @logger.debug("Creating server #{server_name} on Rackspace.")
     cloud_operating_system = @conf.get_config("cloud_operating_system")
     provider = connection.provider
     region = connection.region
@@ -163,7 +164,7 @@ def create_rackspace_server(connection, server_name)
 end
 
 def create_aws_server(connection, server_name)
-    puts "Creating server #{server_name} on AWS."
+    @logger.debug("Creating server #{server_name} on AWS.")
     cloud_operating_system = @conf.get_config("cloud_operating_system")
     provider = connection.provider
     region = connection.region
@@ -189,7 +190,6 @@ def bootstrap_server(server, force)
     fqdn              = "#{server_name}.#{domain}"
     
     as_user           = @conf.get_config('root_user', false) || server.access_user
-    puppet_runner     = @conf.get_config('puppet_runner', false)
 
     eyaml_private_key = @conf.hiera.config[:eyaml][:pkcs7_private_key]
     eyaml_public_key  = @conf.hiera.config[:eyaml][:pkcs7_public_key]
@@ -257,14 +257,19 @@ def connect_to_server(connection, server_name, requires_root_access=true)
         if requires_root_access
             root_password = @conf.get_config('aws_ssh_key')
         end
+        connection.server(server_name, root_user, root_password, os)
     when 'rackspace'
         if requires_root_access
             root_password = @conf.get_config('root_password')
         end
+        connection.server(server_name, root_user, root_password, os)
+    when 'none'
+        ip_address = @conf.get_config("ip_address")
+        root_password = @conf.get_config("root_password")
+        AvstCloud::CloudServer.new(nil, server_name, ip_address, root_user, root_password)
     else
         raise "ERROR: Currently supported providers are: aws.".red
     end
-    server = connection.server(server_name, root_user, root_password, os)
 end
 
 def test_config(server_name)
@@ -299,6 +304,11 @@ def test_config(server_name)
     when 'rackspace'
         puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:       #{@conf.get_config('root_password', false)}"
+    when 'none'
+        puts 'Connecting directly to server:'
+        puts "ip_address:          #{@conf.get_config('ip_address')}"
+        puts "Root password:       #{@conf.get_config('root_user')}"
+        puts "Root password:       #{@conf.get_config('root_password')}"
     else
         raise "ERROR: Currently supported providers are: aws and rackspace.".red
     end
@@ -311,7 +321,7 @@ begin
 rescue Docopt::Exit => e
   abort(e.message)
 end
-
+@logger = Logger.new($stdout)
 @global_config = {}
 if File.exists? ("#{ENV['HOME']}/.avst-cloud.yaml")
     @global_config = YAML.load(File.read("#{ENV['HOME']}/.avst-cloud.yaml"))
@@ -440,15 +450,16 @@ begin
     provider_user = @conf.get_config("provider_username", false) || @global_config['provider_username']
     provider_pass = @conf.get_config("provider_password", false) || @global_config['provider_password']
 
-    unless provider_user and provider_pass
-        raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}"
+    if provider != 'none'
+        unless provider_user and provider_pass
+            raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}"
+        end
     end
-
     case provider
     when 'aws'
         region = @conf.get_config("region", false) || @global_config['region']
-        unless provider_user and provider_pass
-            raise "Please provide provider credentials and region. Provided: Region #{region}"
+        unless region
+            raise "Please provide region. Provided: Region #{region}"
         end
         connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
         AvstCloud::AwsConnection.logger = confl_logger
@@ -458,25 +469,30 @@ begin
         connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
         AvstCloud::RackspaceConnection.logger = confl_logger
         AvstCloud::RackspaceServer.logger = confl_logger
+    when 'none'
+        # when provider is nil, connection not needed, only bootstrap, provision and cleanup commands are allowed
+        connection = nil
     else
         raise "ERROR: Currently supported providers are: aws and rackspace.".red
     end
-
-    AvstCloud::SshCommandTask.logger = confl_logger
-    AvstCloud::ScpTask.logger = confl_logger
+    @logger = confl_logger ? confl_logger : Logger.new($stdout)
+    AvstCloud::SshCommandTask.logger = @logger
+    AvstCloud::ScpTask.logger = @logger
 
     has_errors=false
 
     if options['all']
-        puts "Called all".green
+        @logger.debug("Called all".green)
         test_config(server_name)
         confirmed = confirm("Are you sure you want to create server #{server_name}?", force)
         if confirmed
             case provider
             when 'aws'
-               server = create_aws_server(connection, server_name)
+                server = create_aws_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
+            else
+                server = connect_to_server(connection, server_name)
             end
             bootstrap_server(server, force)
             avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
@@ -486,10 +502,26 @@ begin
                 post_provision_cleanup(server, avst_cloud_tmp_folder)
             end
         else
-            puts "Not creating server, you have to confirm.".yellow
+            @logger.debug("Not creating server, you have to confirm.".yellow)
         end 
+    elsif options['create']
+        @logger.debug("Called create".green)
+        test_config(server_name)
+        confirmed = confirm("Are you sure you want to create server #{server_name}?", force)
+        if confirmed
+            case provider
+            when 'aws'
+               server = create_aws_server(connection, server_name)
+            when 'rackspace'
+                server = create_rackspace_server(connection, server_name)
+            else
+                raise "You can create server only for AWS ans Rackspace provider"
+            end
+        else
+            @logger.debug("Not creating server, you have to confirm.".yellow)
+        end
     elsif options['clean']
-        puts "Called clean".green
+        @logger.debug("Called clean".green)
         avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
         # In case it is default with timestamp remove all
         if (avst_cloud_tmp_folder =~ /\/tmp\/avst_cloud_tmp_/)
@@ -497,21 +529,23 @@ begin
         end
         server = connect_to_server(connection, server_name)
         post_provision_cleanup(server, avst_cloud_tmp_folder)
-        puts "Clean done".green
+        @logger.debug("Clean done".green)
     elsif options['test-config']
         do_not_log = true
         test_config(server_name)
     elsif options['start']
-        puts "Called start".green
-        confirmed = confirm("Are you sure you want to create/start server #{server_name}?", force)
+        @logger.debug("Called start".green)
+        raise "Unsupported operation for provider none" if provider == 'none'
+        confirmed = confirm("Are you sure you want to start server #{server_name}?", force)
         if confirmed
             server = connect_to_server(connection, server_name, false)
             server.start
         else
-            puts "Not starting server.".yellow
+            @logger.debug("Not starting server.".yellow)
         end
     elsif options['stop']
-        puts "Called stop".green
+        @logger.debug("Called stop".green)
+        raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to stop server #{server_name}?", force)
         if confirmed
             # Rackspace stop of server is done via ssh command execution as it does not supports stop
@@ -521,14 +555,16 @@ begin
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
         else
-            puts "Not stopping server.".yellow
+            @logger.debug("Not stopping server.".yellow)
         end
     elsif options['status']
         do_not_log = true
-        puts "Called status".green
+        @logger.debug("Called status".green)
+        raise "Unsupported operation for provider none" if provider == 'none'
         connection.server_status(server_name)
     elsif options['destroy']
-        puts "Called destroy".green
+        @logger.debug("Called destroy".green)
+        raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to destroy server #{server_name}?", force)
         if confirmed 
             server = connect_to_server(connection, server_name, false)
@@ -536,21 +572,22 @@ begin
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
         else
-            puts "Not destroying server as you did not confirm it.".yellow
+            @logger.debug("Not destroying server as you did not confirm it.".yellow)
         end
     elsif options['provision']
-        puts "Called provision".green
+        @logger.debug("Called provision".green)
         server = connect_to_server(connection, server_name)
         avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
         provision_server(server, avst_cloud_tmp_folder)
     elsif options['bootstrap']
-        puts "Called bootstrap".green
+        @logger.debug("Called bootstrap".green)
         server = connect_to_server(connection, server_name)
         bootstrap_server(server, force)
-        puts "Bootstrap done".green
+        @logger.debug("Bootstrap done".green)
     elsif options['find_server']
         do_not_log = true
-        puts "Called find".green
+        @logger.debug("Called find".green)
+        raise "Unsupported operation for provider none" if provider == 'none'
         connection.find_server(server_name).inspect
     else
         do_not_log = true
@@ -560,13 +597,9 @@ begin
 # In case something went wrong on the way
 rescue Exception => e
     message = e.message.force_encoding("utf-8")
-    if connection
-        connection.logger.error("Something went wrong: #{message}")
-        e.backtrace.each do |err|
-            connection.logger.error(err)
-        end
-    else
-        puts "Something went wrong: #{message}"
+    @logger.error("Something went wrong: #{message}")
+    e.backtrace.each do |err|
+        @logger.error(err)
     end
     has_errors=true
 end
@@ -576,13 +609,15 @@ if custom_config_per_run
 end
 
 unless do_not_log
-    puts "Reporting progress".green
+    @logger.debug("Reporting progress".green)
     begin
-        if connection
-            connection.logger.report_event(server_name, conf_parrent_page_id, conf_space)
+        if @logger.methods.include? :report_event
+            @logger.report_event(server_name, conf_parrent_page_id, conf_space)
+        else
+            @logger.debug("Can not report event, logger is ruby standard Logger not Confluence reporter or it does not respond to report_event method".yellow)
         end
     rescue Exception => e
-        puts e.message.yellow
+        @logger.debug(e.message.yellow)
     end
 end
 
@@ -591,4 +626,4 @@ if has_errors
 end
 
 time_taken = ((Time.now - start_time) / 60).round(2)
-puts "Finished in #{time_taken} minutes".green
+@logger.debug("Finished in #{time_taken} minutes".green)
