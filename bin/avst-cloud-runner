@@ -183,6 +183,23 @@ def create_aws_server(connection, server_name)
     connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, vpc, created_by)
 end
 
+def create_azure_server(connection, server_name)
+    @logger.debug("Creating server #{server_name} on Azure.")
+    cloud_operating_system = @conf.get_config("cloud_operating_system")
+    provider = connection.provider
+    region = @conf.get_config("region") || @global_config['region']
+    unless region
+        raise "Please provide location (region) of new Azure server."
+    end
+    azure_image_id, hdd_device_path = get_image_id_and_hdd_device_path(provider, region, cloud_operating_system)
+
+    instance_type        = @conf.get_config("azure_instance_type", false)
+    private_key_file     = @conf.get_config("azure_ssh_key", false)
+    storage_account_name = @conf.get_config("azure_storage_account_name", false)
+    user                 = @conf.get_config("root_user", false)
+    connection.create_server(server_name, user, private_key_file, region, azure_image_id, instance_type, storage_account_name)
+end
+
 def bootstrap_server(server, force)
     server_name = server.server_name
     # domain and fqdn are overwritten for Vagrant below
@@ -258,6 +275,11 @@ def connect_to_server(connection, server_name, requires_root_access=true)
             root_password = @conf.get_config('aws_ssh_key')
         end
         connection.server(server_name, root_user, root_password, os)
+    when 'azure'
+        if requires_root_access
+            root_password = @conf.get_config('azure_ssh_key')
+        end
+        connection.server(server_name, root_user, root_password)
     when 'rackspace'
         if requires_root_access
             root_password = @conf.get_config('root_password')
@@ -268,7 +290,7 @@ def connect_to_server(connection, server_name, requires_root_access=true)
         root_password = @conf.get_config("root_password")
         AvstCloud::CloudServer.new(nil, server_name, ip_address, root_user, root_password)
     else
-        raise "ERROR: Currently supported providers are: aws.".red
+        raise "ERROR: Currently supported providers are: aws, azure and rackspeac.".red
     end
 end
 
@@ -301,6 +323,11 @@ def test_config(server_name)
         puts "Security group ids:  #{@conf.get_config("aws_security_group_ids", false)}"
         puts "Availability zone:   #{@conf.get_config("aws_availability_zone", false)}"
         puts "AWS ebs size:        #{@conf.get_config('aws_ebs_size', false)} G"
+    when 'azure'
+        puts "Region:              #{@conf.get_config('region', false) || @global_config['region']}"
+        puts "Connection SSH key   #{@conf.get_config('azure_ssh_key')}"    
+        puts "Instance type:       #{@conf.get_config("azure_instance_type", false)}"
+        puts "Storage account name:#{@conf.get_config("azure_storage_account_name", false)}"
     when 'rackspace'
         puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:       #{@conf.get_config('root_password', false)}"
@@ -464,6 +491,11 @@ begin
         connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
         AvstCloud::AwsConnection.logger = confl_logger
         AvstCloud::AwsServer.logger = confl_logger
+    when 'azure'
+        provider_api_url = @conf.get_config("provider_api_url", false) || @global_config['provider_api_url']
+        connection = AvstCloud::AzureConnection.new(provider_user, provider_pass, provider_api_url)
+        AvstCloud::AzureConnection.logger = confl_logger
+        AvstCloud::AzureServer.logger = confl_logger
     when 'rackspace'
         region = @conf.get_config("region", false) || @global_config['region'] || :lon
         connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
@@ -489,6 +521,8 @@ begin
             case provider
             when 'aws'
                 server = create_aws_server(connection, server_name)
+            when 'azure'
+                server = create_azure_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
@@ -512,10 +546,12 @@ begin
             case provider
             when 'aws'
                server = create_aws_server(connection, server_name)
+            when 'azure'
+               server = create_azure_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
-                raise "You can create server only for AWS ans Rackspace provider"
+                raise "You can create server only for AWS, Azure and Rackspace provider"
             end
         else
             @logger.debug("Not creating server, you have to confirm.".yellow)

@@ -20,6 +20,7 @@ Gem::Specification.new do |spec|
     spec.add_development_dependency "bundler", "~> 1.6"
     spec.add_development_dependency "rake"
     spec.add_dependency "avst-cloud"
+    spec.add_dependency "azure"
     spec.add_dependency "hiera_loader", ">= 0.0.2"
     spec.add_dependency "hiera-eyaml"
     spec.add_dependency "confluence_reporter", "~> 0.0.5"
