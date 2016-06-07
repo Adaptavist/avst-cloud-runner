@@ -200,6 +200,97 @@ def create_azure_server(connection, server_name)
     connection.create_server(server_name, user, private_key_file, region, azure_image_id, instance_type, storage_account_name)
 end
 
+def destroy_azure_rm_server_and_resources(connection, server, server_name)
+    resource_group = @conf.get_config("resource_group")
+    
+    network_interface = connection.find_network_interface_for_server(server_name, resource_group)
+    storage_account_name = connection.find_storage_account_name_for_server(server_name, resource_group)
+    
+    # destroy server
+    server.destroy
+
+    azure_destroy_netowrk_interface = @conf.get_config("azure_destroy_netowrk_interface", false) == nil ? false : @conf.get_config("azure_destroy_netowrk_interface", false)
+    if azure_destroy_netowrk_interface
+        connection.destroy_network_interface(network_interface.name, resource_group)
+    end
+
+    azure_destroy_public_ip_counfig = @conf.get_config("azure_destroy_public_ip_counfig", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)
+    puts "About to destroy storage_account #{azure_destroy_public_ip_counfig} and #{network_interface} and #{network_interface.public_ip_address_id}"
+    if azure_destroy_public_ip_counfig and network_interface and network_interface.public_ip_address_id
+        ip_configuration_name = network_interface.public_ip_address_id.split("/")[-1]
+        connection.destroy_ip_configuration(ip_configuration_name, resource_group)
+    end
+
+    azure_destroy_virtual_network = @conf.get_config("azure_destroy_virtual_network", false) == nil ? false : @conf.get_config("azure_destroy_virtual_network", false)
+    if azure_destroy_virtual_network and network_interface and network_interface.subnet_id
+        virtual_network_name = network_interface.subnet_id.split("virtualNetworks/")[-1].split("/")[0]
+        connection.destroy_virtual_network(virtual_network_name, resource_group)
+    end
+
+    azure_destroy_storage_account = @conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)
+    puts "About to destroy storage_account #{azure_destroy_storage_account} and #{storage_account_name}"
+    if azure_destroy_storage_account and storage_account_name
+        connection.destroy_storage_account(storage_account_name, resource_group)
+    end
+
+    azure_destroy_resource_group = @conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)
+    if azure_destroy_resource_group
+        connection.destroy_resource_group(resource_group)
+    end
+end
+
+def create_azure_rm_server(connection, server_name)
+    @logger.debug("Creating server #{server_name} on Azure RM.")
+    # cloud_operating_system = @conf.get_config("cloud_operating_system")
+    provider = connection.provider
+    
+    storage_account_name = @conf.get_config("azure_storage_account_name", false)
+
+    publisher = @conf.get_config("publisher")
+    offer = @conf.get_config("offer")
+    sku = @conf.get_config("sku")
+    version = @conf.get_config("version")
+    user = @conf.get_config("root_user")
+    password = @conf.get_config("password")
+    location = @conf.get_config("location", false)
+    resource_group = @conf.get_config("resource_group")
+    vm_size = @conf.get_config("vm_size", false)
+    storage_account_name = @conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"
+    network_interface_name = @conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"
+    virtual_network_name = @conf.get_config("virtual_network_name")
+    subnet_name = @conf.get_config("subnet_name", false)
+    ip_configuration_name = @conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"
+    private_ip_allocation_method = @conf.get_config("private_ip_allocation_method", false)
+    public_ip_allocation_method = @conf.get_config("public_ip_allocation_method", false)
+    subnet_address_list = @conf.get_config("subnet_address_list", false)
+    dns_list = @conf.get_config("dns_list", false)
+    network_address_list = @conf.get_config("network_address_list", false)
+    address_prefix  = @conf.get_config("address_prefix", false)
+    use_public_ip = @conf.get_config("use_public_ip", false) == nil ? true : @conf.get_config("use_public_ip", false)
+    connection.create_server(server_name, 
+            user, 
+            password,
+            publisher,
+            offer,
+            sku,
+            version, 
+            location, 
+            resource_group, 
+            vm_size, 
+            storage_account_name, 
+            network_interface_name, 
+            virtual_network_name, 
+            subnet_name, 
+            ip_configuration_name, 
+            private_ip_allocation_method,
+            public_ip_allocation_method, 
+            subnet_address_list, 
+            dns_list, 
+            network_address_list, 
+            address_prefix,
+            use_public_ip)
+end
+
 def bootstrap_server(server, force)
     server_name = server.server_name
     # domain and fqdn are overwritten for Vagrant below
@@ -280,6 +371,13 @@ def connect_to_server(connection, server_name, requires_root_access=true)
             root_password = @conf.get_config('azure_ssh_key')
         end
         connection.server(server_name, root_user, root_password)
+    when 'azurerm'
+        if requires_root_access
+            root_password = @conf.get_config('password')
+        end
+        resource_group = @conf.get_config('resource_group')
+        use_public_ip = @conf.get_config('use_public_ip', false) == nil ? true : @conf.get_config('use_public_ip', false)
+        connection.server(server_name, resource_group, root_user, root_password, use_public_ip)
     when 'rackspace'
         if requires_root_access
             root_password = @conf.get_config('root_password')
@@ -328,6 +426,11 @@ def test_config(server_name)
         puts "Connection SSH key   #{@conf.get_config('azure_ssh_key')}"    
         puts "Instance type:       #{@conf.get_config("azure_instance_type", false)}"
         puts "Storage account name:#{@conf.get_config("azure_storage_account_name", false)}"
+    when 'azurerm'
+        puts "Location:              #{@conf.get_config('location', false)}"
+        puts "Connection SSH key   #{@conf.get_config('password')}"    
+        puts "Instance type:       #{@conf.get_config("vm_size", false)}"
+        puts "Storage account name:#{@conf.get_config("storage_account_name")}"
     when 'rackspace'
         puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:       #{@conf.get_config('root_password', false)}"
@@ -482,30 +585,44 @@ begin
             raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}"
         end
     end
+    
     case provider
     when 'aws'
         region = @conf.get_config("region", false) || @global_config['region']
         unless region
             raise "Please provide region. Provided: Region #{region}"
         end
+        require 'avst-cloud/aws_connection'
+        require 'avst-cloud/aws_server'
         connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
         AvstCloud::AwsConnection.logger = confl_logger
         AvstCloud::AwsServer.logger = confl_logger
     when 'azure'
+        require 'avst-cloud/azure_connection'
+        require 'avst-cloud/azure_server'
         provider_api_url = @conf.get_config("provider_api_url", false) || @global_config['provider_api_url']
         connection = AvstCloud::AzureConnection.new(provider_user, provider_pass, provider_api_url)
         AvstCloud::AzureConnection.logger = confl_logger
         AvstCloud::AzureServer.logger = confl_logger
     when 'rackspace'
+        require 'avst-cloud/rackspace_connection'
+        require 'avst-cloud/rackspace_server'
         region = @conf.get_config("region", false) || @global_config['region'] || :lon
         connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
         AvstCloud::RackspaceConnection.logger = confl_logger
         AvstCloud::RackspaceServer.logger = confl_logger
+    when 'azurerm'
+        require 'avst-cloud/azure_rm_connection'
+        require 'avst-cloud/azure_rm_server'
+        tenant_id = @conf.get_config("tenant_id")
+        subscription_id = @conf.get_config("subscription_id")
+        puts "Connection"
+        connection = AvstCloud::AzureRmConnection.new(provider_user, provider_pass, tenant_id, subscription_id)
     when 'none'
         # when provider is nil, connection not needed, only bootstrap, provision and cleanup commands are allowed
         connection = nil
     else
-        raise "ERROR: Currently supported providers are: aws and rackspace.".red
+        raise "ERROR: Currently supported providers are: azure, azurerm aws and rackspace.".red
     end
     @logger = confl_logger ? confl_logger : Logger.new($stdout)
     AvstCloud::SshCommandTask.logger = @logger
@@ -523,6 +640,8 @@ begin
                 server = create_aws_server(connection, server_name)
             when 'azure'
                 server = create_azure_server(connection, server_name)
+            when 'azurerm'
+                server = create_azure_rm_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
@@ -548,6 +667,8 @@ begin
                server = create_aws_server(connection, server_name)
             when 'azure'
                server = create_azure_server(connection, server_name)
+            when 'azurerm'
+               server = create_azure_rm_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
@@ -604,8 +725,12 @@ begin
         confirmed = confirm("Are you sure you want to destroy server #{server_name}?", force)
         if confirmed 
             server = connect_to_server(connection, server_name, false)
-            server.destroy
             server_ip_addr = server.ip_address
+            if provider == "azurerm"
+                destroy_azure_rm_server_and_resources(connection, server, server_name)
+            else
+                server.destroy
+            end
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
         else
             @logger.debug("Not destroying server as you did not confirm it.".yellow)
