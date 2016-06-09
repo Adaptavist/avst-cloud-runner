@@ -291,7 +291,7 @@ def create_azure_rm_server(connection, server_name)
             use_public_ip)
 end
 
-def bootstrap_server(server, force)
+def bootstrap_server(server, force, enable_passwordless_sudo)
     server_name = server.server_name
     # domain and fqdn are overwritten for Vagrant below
     domain            = @conf.get_config("domain")
@@ -332,7 +332,7 @@ def bootstrap_server(server, force)
     
     remote_server_debug = false
     debug_structured_log = false
-    server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log)
+    server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log, enable_passwordless_sudo)
 end
 
 
@@ -360,36 +360,39 @@ def connect_to_server(connection, server_name, requires_root_access=true)
     provider = @conf.get_config('provider')
     root_user = @conf.get_config('root_user', false)
     root_password = nil
+    enable_passwordless_sudo = false
     case provider
     when 'aws'
         if requires_root_access
             root_password = @conf.get_config('aws_ssh_key')
         end
-        connection.server(server_name, root_user, root_password, os)
+        server = connection.server(server_name, root_user, root_password, os)
     when 'azure'
         if requires_root_access
             root_password = @conf.get_config('azure_ssh_key')
         end
-        connection.server(server_name, root_user, root_password)
+        server = connection.server(server_name, root_user, root_password)
     when 'azurerm'
         if requires_root_access
             root_password = @conf.get_config('password')
         end
+        enable_passwordless_sudo = true
         resource_group = @conf.get_config('resource_group')
         use_public_ip = @conf.get_config('use_public_ip', false) == nil ? true : @conf.get_config('use_public_ip', false)
-        connection.server(server_name, resource_group, root_user, root_password, use_public_ip)
+        server = connection.server(server_name, resource_group, root_user, root_password, use_public_ip)
     when 'rackspace'
         if requires_root_access
             root_password = @conf.get_config('root_password')
         end
-        connection.server(server_name, root_user, root_password, os)
+        server = connection.server(server_name, root_user, root_password, os)
     when 'none'
         ip_address = @conf.get_config("ip_address")
         root_password = @conf.get_config("root_password")
-        AvstCloud::CloudServer.new(nil, server_name, ip_address, root_user, root_password)
+        server = AvstCloud::CloudServer.new(nil, server_name, ip_address, root_user, root_password)
     else
         raise "ERROR: Currently supported providers are: aws, azure and rackspeac.".red
     end
+    return server, enable_passwordless_sudo
 end
 
 def test_config(server_name)
@@ -635,19 +638,21 @@ begin
         test_config(server_name)
         confirmed = confirm("Are you sure you want to create server #{server_name}?", force)
         if confirmed
+            enable_passwordless_sudo = false
             case provider
             when 'aws'
                 server = create_aws_server(connection, server_name)
             when 'azure'
                 server = create_azure_server(connection, server_name)
             when 'azurerm'
+                enable_passwordless_sudo = true
                 server = create_azure_rm_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
-                server = connect_to_server(connection, server_name)
+                server, enable_passwordless_sudo = connect_to_server(connection, server_name)
             end
-            bootstrap_server(server, force)
+            bootstrap_server(server, force, enable_passwordless_sudo)
             avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
             provision_server(server, avst_cloud_tmp_folder)
             skip_clean = @conf.get_config("skip_clean", false) || false
@@ -684,7 +689,7 @@ begin
         if (avst_cloud_tmp_folder =~ /\/tmp\/avst_cloud_tmp_/)
             avst_cloud_tmp_folder = "/tmp/avst_cloud_tmp_*"
         end
-        server = connect_to_server(connection, server_name)
+        server, enable_passwordless_sudo = connect_to_server(connection, server_name)
         post_provision_cleanup(server, avst_cloud_tmp_folder)
         @logger.debug("Clean done".green)
     elsif options['test-config']
@@ -695,7 +700,7 @@ begin
         raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to start server #{server_name}?", force)
         if confirmed
-            server = connect_to_server(connection, server_name, false)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false)
             server.start
         else
             @logger.debug("Not starting server.".yellow)
@@ -707,7 +712,7 @@ begin
         if confirmed
             # Rackspace stop of server is done via ssh command execution as it does not supports stop
             requires_root_access = provider == 'rackspace' ? true : false
-            server = connect_to_server(connection, server_name, requires_root_access)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, requires_root_access)
             server.stop
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
@@ -724,7 +729,7 @@ begin
         raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to destroy server #{server_name}?", force)
         if confirmed 
-            server = connect_to_server(connection, server_name, false)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false)
             server_ip_addr = server.ip_address
             if provider == "azurerm"
                 destroy_azure_rm_server_and_resources(connection, server, server_name)
@@ -737,13 +742,13 @@ begin
         end
     elsif options['provision']
         @logger.debug("Called provision".green)
-        server = connect_to_server(connection, server_name)
+        server, enable_passwordless_sudo = connect_to_server(connection, server_name)
         avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
         provision_server(server, avst_cloud_tmp_folder)
     elsif options['bootstrap']
         @logger.debug("Called bootstrap".green)
-        server = connect_to_server(connection, server_name)
-        bootstrap_server(server, force)
+        server, enable_passwordless_sudo = connect_to_server(connection, server_name)
+        bootstrap_server(server, force, enable_passwordless_sudo)
         @logger.debug("Bootstrap done".green)
     elsif options['find_server']
         do_not_log = true
