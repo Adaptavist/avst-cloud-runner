@@ -567,7 +567,7 @@ begin
     provider = @conf.get_config("provider").downcase
 
     do_not_log = do_not_log || ( @conf.get_config("no_report", false) == 'true')
-    unless do_not_log
+    unless do_not_log || options['test-config']  || options['status']
         puts "Setting confluence logger as default logger".green
         conf_base_url        = @conf.get_config("confluence_url", false) || @global_config['confluence_url']
         conf_user            = @conf.get_config("confluence_user", false) || @global_config['confluence_user']
