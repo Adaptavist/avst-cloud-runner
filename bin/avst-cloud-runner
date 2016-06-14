@@ -244,8 +244,6 @@ def create_azure_rm_server(connection, server_name)
     # cloud_operating_system = @conf.get_config("cloud_operating_system")
     provider = connection.provider
     
-    storage_account_name = @conf.get_config("azure_storage_account_name", false)
-
     publisher = @conf.get_config("publisher")
     offer = @conf.get_config("offer")
     sku = @conf.get_config("sku")
@@ -433,7 +431,7 @@ def test_config(server_name)
         puts "Location:              #{@conf.get_config('location', false)}"
         puts "Connection SSH key   #{@conf.get_config('password')}"    
         puts "Instance type:       #{@conf.get_config("vm_size", false)}"
-        puts "Storage account name:#{@conf.get_config("storage_account_name")}"
+        puts "Storage account name:#{@conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"}"
     when 'rackspace'
         puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:       #{@conf.get_config('root_password', false)}"
