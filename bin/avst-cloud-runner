@@ -209,8 +209,8 @@ def destroy_azure_rm_server_and_resources(connection, server, server_name)
     # destroy server
     server.destroy
 
-    azure_destroy_netowrk_interface = @conf.get_config("azure_destroy_netowrk_interface", false) == nil ? false : @conf.get_config("azure_destroy_netowrk_interface", false)
-    if azure_destroy_netowrk_interface
+    azure_destroy_network_interface = @conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)
+    if azure_destroy_network_interface
         connection.destroy_network_interface(network_interface.name, resource_group)
     end
 
@@ -402,46 +402,64 @@ def test_config(server_name)
     bootstrap_file      = @conf.get_config("bootstrap_template", false) || "#{File.expand_path("../../", __FILE__)}/config/bootstrap/#{@conf.get_config('cloud_operating_system')}.yaml.erb"
 
     puts "Called test-config for #{server_name}".green
-    puts "Provider:            #{@conf.get_config('provider')}"
-    puts "Provider user:       #{@conf.get_config('provider_username')}"
-    puts "Provider pass:       #{@conf.get_config('provider_password')}"
-    puts "Domain:              #{@conf.get_config('domain', false)}"
-    puts "Customer short code: #{customer_short_code}"
-    puts "Environment:         #{env}"
-    puts "Server number:       #{server_number}"
-    puts "Operating system:    #{@conf.get_config('cloud_operating_system')}"
-    puts "eyaml private key:   #{@conf.hiera.config[:eyaml][:pkcs7_private_key]}"
-    puts "eyaml public key:    #{@conf.hiera.config[:eyaml][:pkcs7_public_key]}"
-    puts "Git repo:            #{@conf.get_config('git', false)}"
-    puts "Branch:              #{@conf.get_config('branch', false)}"
-    puts "Tag reference:       #{@conf.get_config('reference', false)}"
-    puts "Bootstrap Script:    #{bootstrap_file}"
+    puts "Provider:                  #{@conf.get_config('provider')}"
+    puts "Provider user:             #{@conf.get_config('provider_username')}"
+    puts "Provider pass:             #{@conf.get_config('provider_password')}"
+    puts "Domain:                    #{@conf.get_config('domain', false)}"
+    puts "Customer short code:       #{customer_short_code}"
+    puts "Environment:               #{env}"
+    puts "Server number:             #{server_number}"
+    puts "Operating system:          #{@conf.get_config('cloud_operating_system')}"
+    puts "eyaml private key:         #{@conf.hiera.config[:eyaml][:pkcs7_private_key]}"
+    puts "eyaml public key:          #{@conf.hiera.config[:eyaml][:pkcs7_public_key]}"
+    puts "Git repo:                  #{@conf.get_config('git', false)}"
+    puts "Branch:                    #{@conf.get_config('branch', false)}"
+    puts "Tag reference:             #{@conf.get_config('reference', false)}"
+    puts "Bootstrap Script:          #{bootstrap_file}"
     case provider
     when 'aws'
-        puts "Region:              #{@conf.get_config('region', false) || @global_config['region']}"
-        puts "Connection SSH key   #{@conf.get_config('aws_ssh_key')}"
-        puts "Subnet id:           #{@conf.get_config("aws_subnet_id", false)}"
-        puts "Security group ids:  #{@conf.get_config("aws_security_group_ids", false)}"
-        puts "Availability zone:   #{@conf.get_config("aws_availability_zone", false)}"
-        puts "AWS ebs size:        #{@conf.get_config('aws_ebs_size', false)} G"
+        puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
+        puts "Connection SSH key         #{@conf.get_config('aws_ssh_key')}"
+        puts "Subnet id:                 #{@conf.get_config("aws_subnet_id", false)}"
+        puts "Security group ids:        #{@conf.get_config("aws_security_group_ids", false)}"
+        puts "Availability zone:         #{@conf.get_config("aws_availability_zone", false)}"
+        puts "AWS ebs size:              #{@conf.get_config('aws_ebs_size', false)} G"
     when 'azure'
-        puts "Region:              #{@conf.get_config('region', false) || @global_config['region']}"
-        puts "Connection SSH key   #{@conf.get_config('azure_ssh_key')}"    
-        puts "Instance type:       #{@conf.get_config("azure_instance_type", false)}"
-        puts "Storage account name:#{@conf.get_config("azure_storage_account_name", false)}"
+        puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
+        puts "Connection SSH key         #{@conf.get_config('azure_ssh_key')}"    
+        puts "Instance type:             #{@conf.get_config("azure_instance_type", false)}"
+        puts "Storage account name:      #{@conf.get_config("azure_storage_account_name", false)}"
     when 'azurerm'
-        puts "Location:            #{@conf.get_config('location', false) || "West Europe"}"
-        puts "Connection SSH key   #{@conf.get_config('password')}"    
-        puts "Instance type:       #{@conf.get_config("vm_size", false) || "Basic_A0"}"
-        puts "Storage account name:#{@conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"}"
+        puts "Location:                  #{@conf.get_config('location', false) || "West Europe"}"
+        puts "Connection SSH key         #{@conf.get_config('password')}"    
+        puts "Instance type:             #{@conf.get_config("vm_size", false) || "Basic_A0"}"
+        puts "Storage account name:      #{@conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"}"
+        puts "Virtual Network Name:      #{@conf.get_config("virtual_network_name")}"
+        puts "Network Interface Name:    #{@conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"}"
+        puts "Subnet Name:               #{@conf.get_config("subnet_name", false)}"
+        puts "IP Configuration Name:     #{@conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"}"
+        puts "Private IP Alloc Method:   #{@conf.get_config("private_ip_allocation_method", false)}"
+        puts "Public IP Alloc Method:    #{@conf.get_config("public_ip_allocation_method", false)}"
+        puts "Subnet Address List:       #{@conf.get_config("subnet_address_list", false)}"
+        puts "DNS List:                  #{@conf.get_config("dns_list", false)}"
+        puts "Network Addres List:       #{@conf.get_config("network_address_list", false)}"
+        puts "Address Prefix"            #{@conf.get_config("address_prefix", false)}"
+        puts "Use Public IP:             #{@conf.get_config("use_public_ip", false)}"
+        puts "Destroy Network Interface: #{@conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)}"
+        puts "Destroy Public IP:         #{@conf.get_config("azure_destroy_public_ip_counfig", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)}"
+        puts "Destroy Virtual Network:   #{@conf.get_config("azure_destroy_virtual_network", false) == nil ? false : @conf.get_config("azure_destroy_virtual_network", false)}"
+        puts "Destroy Storage Account:   #{@conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)}"
+        puts "Destroy Resource Group:    #{@conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)}"
+        puts "Azure OS Image:            #{@conf.get_config("publisher")} #{@conf.get_config("offer")} #{@conf.get_config("sku")} #{@conf.get_config("version")}"
+
     when 'rackspace'
-        puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
-        puts "Root password:       #{@conf.get_config('root_password', false)}"
+        puts "Region:                    #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
+        puts "Root password:             #{@conf.get_config('root_password', false)}"
     when 'none'
         puts 'Connecting directly to server:'
-        puts "ip_address:          #{@conf.get_config('ip_address')}"
-        puts "Root password:       #{@conf.get_config('root_user')}"
-        puts "Root password:       #{@conf.get_config('root_password')}"
+        puts "ip_address:                #{@conf.get_config('ip_address')}"
+        puts "Root password:             #{@conf.get_config('root_user')}"
+        puts "Root password:             #{@conf.get_config('root_password')}"
     else
         raise "ERROR: Currently supported providers are: aws and rackspace.".red
     end
