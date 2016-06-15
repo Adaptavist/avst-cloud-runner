@@ -443,7 +443,7 @@ def test_config(server_name)
         puts "Subnet Address List:       #{@conf.get_config("subnet_address_list", false)}"
         puts "DNS List:                  #{@conf.get_config("dns_list", false)}"
         puts "Network Addres List:       #{@conf.get_config("network_address_list", false)}"
-        puts "Address Prefix"            #{@conf.get_config("address_prefix", false)}"
+        puts "Address Prefix:            #{@conf.get_config("address_prefix", false)}"
         puts "Use Public IP:             #{@conf.get_config("use_public_ip", false)}"
         puts "Destroy Network Interface: #{@conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)}"
         puts "Destroy Public IP:         #{@conf.get_config("azure_destroy_public_ip_counfig", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)}"
