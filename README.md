@@ -1,6 +1,6 @@
 # avst-cloud-runner
 
-Automated creation, bootstrapping and provisioning of servers. Currently supports AWS
+Automated creation, bootstrapping and provisioning of servers. Currently supports AWS, Azure, Rackspace
 
 ## Prerequisites
 Make sure rvm and ruby 2.0 is installed.
@@ -138,6 +138,49 @@ For more details and options check config/hiera/global.eyaml
 ### **Rackspace** setup
 
 Check config/hiera/global.eyaml for example Rackspace setup. You have to provide Rackspace credentials, image_id, flavor_id for your instance. If you are running one of the commands bootstrap, provision, stop, you have to provide root_password for your server.
+
+### **Azure** setup
+
+Support for Azure Resource Manager based management was added. To create a server you have to provide:
+
+* provider: "azurerm"
+* # See https://azure.microsoft.com/en-us/documentation/articles/resource-group-create-service-principal-portal/
+* client_id: "" # Client ID:
+* client_secret:  "" # 2 Year Key: ...
+* tenant_id: ""  # Tenant ID: ...
+* subscription_id: "" # Subscription ID
+
+* cloud_operating_system: "centos-7"
+* publisher: 'OpenLogic'
+* offer: 'CentOS'
+* sku: '7.1'
+* version: 'latest'
+
+* root_user: "azureuser"
+* # Must comply to Azure pass guidelines
+* password: "superSecretUbuntuPass111_@"
+* location: 'West Europe' # Will default to West Europe
+* resource_group: "new_resource_group" # if RG does not exists it will create it
+* vm_size: 'Standard_A3' # Defaults to Basic_A0
+* storage_account_name: "new_storage_account" # creates it if not there, if not provided will autogenerate one based on hostname
+* network_interface_name: "new_network_interface" # creates it if not there, see defaults in azure_rm_connection, if not provided will autogenerate one based on hostname
+* virtual_network_name: "new_virtual_network" # creates it if not there, see defaults in azure_rm_connection
+* #subnet_name:  # by default one gets created for new new network, if there is one we use it if more or none it fails 
+* ip_configuration_name: "new_ip_config" # creates it if not there, see defaults in azure_rm_connection, if not provided will autogenerate one based on hostname
+* private_ip_allocation_method: "Dynamic"
+* public_ip_allocation_method: "Static"
+* #subnet_address_list: ''
+* #dns_list: ''
+* #network_address_list: ''
+* #address_prefix: ''
+* use_public_ip: true # will return public ip, if set to false, private will be used by bootstrap
+
+* # define destroy behaviour, if resources should be destroyed with the server
+* azure_destroy_public_ip_counfig: true
+* azure_destroy_netowrk_interface: true
+* azure_destroy_virtual_network: true
+* azure_destroy_storage_account: true
+* azure_destroy_resource_group: true
 
 ### Provider none setup
 

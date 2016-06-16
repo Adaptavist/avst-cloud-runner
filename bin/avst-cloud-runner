@@ -200,7 +200,96 @@ def create_azure_server(connection, server_name)
     connection.create_server(server_name, user, private_key_file, region, azure_image_id, instance_type, storage_account_name)
 end
 
-def bootstrap_server(server, force)
+def destroy_azure_rm_server_and_resources(connection, server, server_name)
+    resource_group = @conf.get_config("resource_group")
+    
+    network_interface = connection.find_network_interface_for_server(server_name, resource_group)
+    storage_account_name = connection.find_storage_account_name_for_server(server_name, resource_group)
+    
+    # destroy server
+    server.destroy
+
+    azure_destroy_network_interface = @conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)
+    if azure_destroy_network_interface
+        connection.destroy_network_interface(network_interface.name, resource_group)
+    end
+
+    azure_destroy_public_ip_counfig = @conf.get_config("azure_destroy_public_ip_counfig", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)
+    puts "About to destroy storage_account #{azure_destroy_public_ip_counfig} and #{network_interface} and #{network_interface.public_ip_address_id}"
+    if azure_destroy_public_ip_counfig and network_interface and network_interface.public_ip_address_id
+        ip_configuration_name = network_interface.public_ip_address_id.split("/")[-1]
+        connection.destroy_ip_configuration(ip_configuration_name, resource_group)
+    end
+
+    azure_destroy_virtual_network = @conf.get_config("azure_destroy_virtual_network", false) == nil ? false : @conf.get_config("azure_destroy_virtual_network", false)
+    if azure_destroy_virtual_network and network_interface and network_interface.subnet_id
+        virtual_network_name = network_interface.subnet_id.split("virtualNetworks/")[-1].split("/")[0]
+        connection.destroy_virtual_network(virtual_network_name, resource_group)
+    end
+
+    azure_destroy_storage_account = @conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)
+    puts "About to destroy storage_account #{azure_destroy_storage_account} and #{storage_account_name}"
+    if azure_destroy_storage_account and storage_account_name
+        connection.destroy_storage_account(storage_account_name, resource_group)
+    end
+
+    azure_destroy_resource_group = @conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)
+    if azure_destroy_resource_group
+        connection.destroy_resource_group(resource_group)
+    end
+end
+
+def create_azure_rm_server(connection, server_name)
+    @logger.debug("Creating server #{server_name} on Azure RM.")
+    # cloud_operating_system = @conf.get_config("cloud_operating_system")
+    provider = connection.provider
+    
+    publisher = @conf.get_config("publisher")
+    offer = @conf.get_config("offer")
+    sku = @conf.get_config("sku")
+    version = @conf.get_config("version")
+    user = @conf.get_config("root_user")
+    password = @conf.get_config("password")
+    location = @conf.get_config("location", false) || "West Europe"
+    resource_group = @conf.get_config("resource_group")
+    vm_size = @conf.get_config("vm_size", false)  || "Basic_A0"
+    storage_account_name = @conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"
+    network_interface_name = @conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"
+    virtual_network_name = @conf.get_config("virtual_network_name")
+    subnet_name = @conf.get_config("subnet_name", false)
+    ip_configuration_name = @conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"
+    private_ip_allocation_method = @conf.get_config("private_ip_allocation_method", false)
+    public_ip_allocation_method = @conf.get_config("public_ip_allocation_method", false)
+    subnet_address_list = @conf.get_config("subnet_address_list", false)
+    dns_list = @conf.get_config("dns_list", false)
+    network_address_list = @conf.get_config("network_address_list", false)
+    address_prefix  = @conf.get_config("address_prefix", false)
+    use_public_ip = @conf.get_config("use_public_ip", false) == nil ? true : @conf.get_config("use_public_ip", false)
+    connection.create_server(server_name, 
+            user, 
+            password,
+            publisher,
+            offer,
+            sku,
+            version, 
+            location, 
+            resource_group, 
+            vm_size, 
+            storage_account_name, 
+            network_interface_name, 
+            virtual_network_name, 
+            subnet_name, 
+            ip_configuration_name, 
+            private_ip_allocation_method,
+            public_ip_allocation_method, 
+            subnet_address_list, 
+            dns_list, 
+            network_address_list, 
+            address_prefix,
+            use_public_ip)
+end
+
+def bootstrap_server(server, force, enable_passwordless_sudo)
     server_name = server.server_name
     # domain and fqdn are overwritten for Vagrant below
     domain            = @conf.get_config("domain")
@@ -241,7 +330,7 @@ def bootstrap_server(server, force)
     
     remote_server_debug = false
     debug_structured_log = false
-    server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log)
+    server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log, enable_passwordless_sudo)
 end
 
 
@@ -269,29 +358,39 @@ def connect_to_server(connection, server_name, requires_root_access=true)
     provider = @conf.get_config('provider')
     root_user = @conf.get_config('root_user', false)
     root_password = nil
+    enable_passwordless_sudo = false
     case provider
     when 'aws'
         if requires_root_access
             root_password = @conf.get_config('aws_ssh_key')
         end
-        connection.server(server_name, root_user, root_password, os)
+        server = connection.server(server_name, root_user, root_password, os)
     when 'azure'
         if requires_root_access
             root_password = @conf.get_config('azure_ssh_key')
         end
-        connection.server(server_name, root_user, root_password)
+        server = connection.server(server_name, root_user, root_password)
+    when 'azurerm'
+        if requires_root_access
+            root_password = @conf.get_config('password')
+        end
+        enable_passwordless_sudo = true
+        resource_group = @conf.get_config('resource_group')
+        use_public_ip = @conf.get_config('use_public_ip', false) == nil ? true : @conf.get_config('use_public_ip', false)
+        server = connection.server(server_name, resource_group, root_user, root_password, use_public_ip)
     when 'rackspace'
         if requires_root_access
             root_password = @conf.get_config('root_password')
         end
-        connection.server(server_name, root_user, root_password, os)
+        server = connection.server(server_name, root_user, root_password, os)
     when 'none'
         ip_address = @conf.get_config("ip_address")
         root_password = @conf.get_config("root_password")
-        AvstCloud::CloudServer.new(nil, server_name, ip_address, root_user, root_password)
+        server = AvstCloud::CloudServer.new(nil, server_name, ip_address, root_user, root_password)
     else
         raise "ERROR: Currently supported providers are: aws, azure and rackspeac.".red
     end
+    return server, enable_passwordless_sudo
 end
 
 def test_config(server_name)
@@ -300,42 +399,67 @@ def test_config(server_name)
     customer_short_code = splitted[0]
     env                 = splitted[1].gsub(/\d+/, '')
     server_number       = splitted[1].gsub(/[^\d]+/, '')
+    bootstrap_file      = @conf.get_config("bootstrap_template", false) || "#{File.expand_path("../../", __FILE__)}/config/bootstrap/#{@conf.get_config('cloud_operating_system')}.yaml.erb"
 
     puts "Called test-config for #{server_name}".green
-    puts "Provider:            #{@conf.get_config('provider')}"
-    puts "Provider user:       #{@conf.get_config('provider_username')}"
-    puts "Provider pass:       #{@conf.get_config('provider_password')}"
-    puts "Domain:              #{@conf.get_config('domain', false)}"
-    puts "Customer short code: #{customer_short_code}"
-    puts "Environment:         #{env}"
-    puts "Server number:       #{server_number}"
-    puts "Operating system:    #{@conf.get_config('cloud_operating_system')}"
-    puts "eyaml private key:   #{@conf.hiera.config[:eyaml][:pkcs7_private_key]}"
-    puts "eyaml public key:    #{@conf.hiera.config[:eyaml][:pkcs7_public_key]}"
-    puts "Git repo:            #{@conf.get_config('git', false)}"
-    puts "Branch:              #{@conf.get_config('branch', false)}"
-    puts "Tag reference:       #{@conf.get_config('reference', false)}"
+    puts "Provider:                  #{@conf.get_config('provider')}"
+    puts "Provider user:             #{@conf.get_config('provider_username')}"
+    puts "Provider pass:             #{@conf.get_config('provider_password')}"
+    puts "Domain:                    #{@conf.get_config('domain', false)}"
+    puts "Customer short code:       #{customer_short_code}"
+    puts "Environment:               #{env}"
+    puts "Server number:             #{server_number}"
+    puts "Operating system:          #{@conf.get_config('cloud_operating_system')}"
+    puts "eyaml private key:         #{@conf.hiera.config[:eyaml][:pkcs7_private_key]}"
+    puts "eyaml public key:          #{@conf.hiera.config[:eyaml][:pkcs7_public_key]}"
+    puts "Git repo:                  #{@conf.get_config('git', false)}"
+    puts "Branch:                    #{@conf.get_config('branch', false)}"
+    puts "Tag reference:             #{@conf.get_config('reference', false)}"
+    puts "Bootstrap Script:          #{bootstrap_file}"
     case provider
     when 'aws'
-        puts "Region:              #{@conf.get_config('region', false) || @global_config['region']}"
-        puts "Connection SSH key   #{@conf.get_config('aws_ssh_key')}"
-        puts "Subnet id:           #{@conf.get_config("aws_subnet_id", false)}"
-        puts "Security group ids:  #{@conf.get_config("aws_security_group_ids", false)}"
-        puts "Availability zone:   #{@conf.get_config("aws_availability_zone", false)}"
-        puts "AWS ebs size:        #{@conf.get_config('aws_ebs_size', false)} G"
+        puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
+        puts "Connection SSH key         #{@conf.get_config('aws_ssh_key')}"
+        puts "Subnet id:                 #{@conf.get_config("aws_subnet_id", false)}"
+        puts "Security group ids:        #{@conf.get_config("aws_security_group_ids", false)}"
+        puts "Availability zone:         #{@conf.get_config("aws_availability_zone", false)}"
+        puts "AWS ebs size:              #{@conf.get_config('aws_ebs_size', false)} G"
     when 'azure'
-        puts "Region:              #{@conf.get_config('region', false) || @global_config['region']}"
-        puts "Connection SSH key   #{@conf.get_config('azure_ssh_key')}"    
-        puts "Instance type:       #{@conf.get_config("azure_instance_type", false)}"
-        puts "Storage account name:#{@conf.get_config("azure_storage_account_name", false)}"
+        puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
+        puts "Connection SSH key         #{@conf.get_config('azure_ssh_key')}"    
+        puts "Instance type:             #{@conf.get_config("azure_instance_type", false)}"
+        puts "Storage account name:      #{@conf.get_config("azure_storage_account_name", false)}"
+    when 'azurerm'
+        puts "Location:                  #{@conf.get_config('location', false) || "West Europe"}"
+        puts "Connection SSH key         #{@conf.get_config('password')}"    
+        puts "Instance type:             #{@conf.get_config("vm_size", false) || "Basic_A0"}"
+        puts "Storage account name:      #{@conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"}"
+        puts "Virtual Network Name:      #{@conf.get_config("virtual_network_name")}"
+        puts "Network Interface Name:    #{@conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"}"
+        puts "Subnet Name:               #{@conf.get_config("subnet_name", false)}"
+        puts "IP Configuration Name:     #{@conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"}"
+        puts "Private IP Alloc Method:   #{@conf.get_config("private_ip_allocation_method", false)}"
+        puts "Public IP Alloc Method:    #{@conf.get_config("public_ip_allocation_method", false)}"
+        puts "Subnet Address List:       #{@conf.get_config("subnet_address_list", false)}"
+        puts "DNS List:                  #{@conf.get_config("dns_list", false)}"
+        puts "Network Addres List:       #{@conf.get_config("network_address_list", false)}"
+        puts "Address Prefix:            #{@conf.get_config("address_prefix", false)}"
+        puts "Use Public IP:             #{@conf.get_config("use_public_ip", false)}"
+        puts "Destroy Network Interface: #{@conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)}"
+        puts "Destroy Public IP:         #{@conf.get_config("azure_destroy_public_ip_counfig", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)}"
+        puts "Destroy Virtual Network:   #{@conf.get_config("azure_destroy_virtual_network", false) == nil ? false : @conf.get_config("azure_destroy_virtual_network", false)}"
+        puts "Destroy Storage Account:   #{@conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)}"
+        puts "Destroy Resource Group:    #{@conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)}"
+        puts "Azure OS Image:            #{@conf.get_config("publisher")} #{@conf.get_config("offer")} #{@conf.get_config("sku")} #{@conf.get_config("version")}"
+
     when 'rackspace'
-        puts "Region:              #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
-        puts "Root password:       #{@conf.get_config('root_password', false)}"
+        puts "Region:                    #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
+        puts "Root password:             #{@conf.get_config('root_password', false)}"
     when 'none'
         puts 'Connecting directly to server:'
-        puts "ip_address:          #{@conf.get_config('ip_address')}"
-        puts "Root password:       #{@conf.get_config('root_user')}"
-        puts "Root password:       #{@conf.get_config('root_password')}"
+        puts "ip_address:                #{@conf.get_config('ip_address')}"
+        puts "Root password:             #{@conf.get_config('root_user')}"
+        puts "Root password:             #{@conf.get_config('root_password')}"
     else
         raise "ERROR: Currently supported providers are: aws and rackspace.".red
     end
@@ -461,7 +585,7 @@ begin
     provider = @conf.get_config("provider").downcase
 
     do_not_log = do_not_log || ( @conf.get_config("no_report", false) == 'true')
-    unless do_not_log
+    unless do_not_log || options['test-config']  || options['status']
         puts "Setting confluence logger as default logger".green
         conf_base_url        = @conf.get_config("confluence_url", false) || @global_config['confluence_url']
         conf_user            = @conf.get_config("confluence_user", false) || @global_config['confluence_user']
@@ -482,30 +606,44 @@ begin
             raise "Please provide provider credentials and region. Provided: User #{provider_user}, Pass #{provider_pass}"
         end
     end
+    
     case provider
     when 'aws'
         region = @conf.get_config("region", false) || @global_config['region']
         unless region
             raise "Please provide region. Provided: Region #{region}"
         end
+        require 'avst-cloud/aws_connection'
+        require 'avst-cloud/aws_server'
         connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
         AvstCloud::AwsConnection.logger = confl_logger
         AvstCloud::AwsServer.logger = confl_logger
     when 'azure'
+        require 'avst-cloud/azure_connection'
+        require 'avst-cloud/azure_server'
         provider_api_url = @conf.get_config("provider_api_url", false) || @global_config['provider_api_url']
         connection = AvstCloud::AzureConnection.new(provider_user, provider_pass, provider_api_url)
         AvstCloud::AzureConnection.logger = confl_logger
         AvstCloud::AzureServer.logger = confl_logger
     when 'rackspace'
+        require 'avst-cloud/rackspace_connection'
+        require 'avst-cloud/rackspace_server'
         region = @conf.get_config("region", false) || @global_config['region'] || :lon
         connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
         AvstCloud::RackspaceConnection.logger = confl_logger
         AvstCloud::RackspaceServer.logger = confl_logger
+    when 'azurerm'
+        require 'avst-cloud/azure_rm_connection'
+        require 'avst-cloud/azure_rm_server'
+        tenant_id = @conf.get_config("tenant_id")
+        subscription_id = @conf.get_config("subscription_id")
+        puts "Connection"
+        connection = AvstCloud::AzureRmConnection.new(provider_user, provider_pass, tenant_id, subscription_id)
     when 'none'
         # when provider is nil, connection not needed, only bootstrap, provision and cleanup commands are allowed
         connection = nil
     else
-        raise "ERROR: Currently supported providers are: aws and rackspace.".red
+        raise "ERROR: Currently supported providers are: azure, azurerm aws and rackspace.".red
     end
     @logger = confl_logger ? confl_logger : Logger.new($stdout)
     AvstCloud::SshCommandTask.logger = @logger
@@ -518,17 +656,21 @@ begin
         test_config(server_name)
         confirmed = confirm("Are you sure you want to create server #{server_name}?", force)
         if confirmed
+            enable_passwordless_sudo = false
             case provider
             when 'aws'
                 server = create_aws_server(connection, server_name)
             when 'azure'
                 server = create_azure_server(connection, server_name)
+            when 'azurerm'
+                enable_passwordless_sudo = true
+                server = create_azure_rm_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
-                server = connect_to_server(connection, server_name)
+                server, enable_passwordless_sudo = connect_to_server(connection, server_name)
             end
-            bootstrap_server(server, force)
+            bootstrap_server(server, force, enable_passwordless_sudo)
             avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
             provision_server(server, avst_cloud_tmp_folder)
             skip_clean = @conf.get_config("skip_clean", false) || false
@@ -548,6 +690,8 @@ begin
                server = create_aws_server(connection, server_name)
             when 'azure'
                server = create_azure_server(connection, server_name)
+            when 'azurerm'
+               server = create_azure_rm_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
@@ -563,7 +707,7 @@ begin
         if (avst_cloud_tmp_folder =~ /\/tmp\/avst_cloud_tmp_/)
             avst_cloud_tmp_folder = "/tmp/avst_cloud_tmp_*"
         end
-        server = connect_to_server(connection, server_name)
+        server, enable_passwordless_sudo = connect_to_server(connection, server_name)
         post_provision_cleanup(server, avst_cloud_tmp_folder)
         @logger.debug("Clean done".green)
     elsif options['test-config']
@@ -574,7 +718,7 @@ begin
         raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to start server #{server_name}?", force)
         if confirmed
-            server = connect_to_server(connection, server_name, false)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false)
             server.start
         else
             @logger.debug("Not starting server.".yellow)
@@ -586,7 +730,7 @@ begin
         if confirmed
             # Rackspace stop of server is done via ssh command execution as it does not supports stop
             requires_root_access = provider == 'rackspace' ? true : false
-            server = connect_to_server(connection, server_name, requires_root_access)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, requires_root_access)
             server.stop
             server_ip_addr = server.ip_address
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
@@ -603,22 +747,26 @@ begin
         raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to destroy server #{server_name}?", force)
         if confirmed 
-            server = connect_to_server(connection, server_name, false)
-            server.destroy
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false)
             server_ip_addr = server.ip_address
+            if provider == "azurerm"
+                destroy_azure_rm_server_and_resources(connection, server, server_name)
+            else
+                server.destroy
+            end
             remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
         else
             @logger.debug("Not destroying server as you did not confirm it.".yellow)
         end
     elsif options['provision']
         @logger.debug("Called provision".green)
-        server = connect_to_server(connection, server_name)
+        server, enable_passwordless_sudo = connect_to_server(connection, server_name)
         avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
         provision_server(server, avst_cloud_tmp_folder)
     elsif options['bootstrap']
         @logger.debug("Called bootstrap".green)
-        server = connect_to_server(connection, server_name)
-        bootstrap_server(server, force)
+        server, enable_passwordless_sudo = connect_to_server(connection, server_name)
+        bootstrap_server(server, force, enable_passwordless_sudo)
         @logger.debug("Bootstrap done".green)
     elsif options['find_server']
         do_not_log = true
