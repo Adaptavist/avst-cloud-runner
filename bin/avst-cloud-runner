@@ -210,25 +210,27 @@ def destroy_azure_rm_server_and_resources(connection, server, server_name)
     server.destroy
 
     azure_destroy_network_interface = @conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)
+    @logger.debug "About to destroy network_interface #{azure_destroy_network_interface} and #{network_interface}"
     if azure_destroy_network_interface
         connection.destroy_network_interface(network_interface.name, resource_group)
     end
 
-    azure_destroy_public_ip_counfig = @conf.get_config("azure_destroy_public_ip_counfig", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)
-    puts "About to destroy storage_account #{azure_destroy_public_ip_counfig} and #{network_interface} and #{network_interface.public_ip_address_id}"
-    if azure_destroy_public_ip_counfig and network_interface and network_interface.public_ip_address_id
+    azure_destroy_public_ip_config = @conf.get_config("azure_destroy_public_ip_config", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_config", false)
+    @logger.debug "About to destroy public_ip_config #{azure_destroy_public_ip_config} and #{network_interface}"
+    if azure_destroy_public_ip_config and network_interface and network_interface.public_ip_address_id
         ip_configuration_name = network_interface.public_ip_address_id.split("/")[-1]
         connection.destroy_ip_configuration(ip_configuration_name, resource_group)
     end
 
     azure_destroy_virtual_network = @conf.get_config("azure_destroy_virtual_network", false) == nil ? false : @conf.get_config("azure_destroy_virtual_network", false)
+    @logger.debug "About to destroy virtual_network #{azure_destroy_virtual_network} and #{network_interface}"
     if azure_destroy_virtual_network and network_interface and network_interface.subnet_id
         virtual_network_name = network_interface.subnet_id.split("virtualNetworks/")[-1].split("/")[0]
         connection.destroy_virtual_network(virtual_network_name, resource_group)
     end
 
     azure_destroy_storage_account = @conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)
-    puts "About to destroy storage_account #{azure_destroy_storage_account} and #{storage_account_name}"
+    @logger.debug "About to destroy storage_account #{azure_destroy_storage_account} and #{storage_account_name}"
     if azure_destroy_storage_account and storage_account_name
         connection.destroy_storage_account(storage_account_name, resource_group)
     end
@@ -248,6 +250,7 @@ def create_azure_rm_server(connection, server_name)
     offer = @conf.get_config("offer")
     sku = @conf.get_config("sku")
     version = @conf.get_config("version")
+    platform = @conf.get_config("platform", false) || "Linux"
     user = @conf.get_config("root_user")
     password = @conf.get_config("password")
     location = @conf.get_config("location", false) || "West Europe"
@@ -257,7 +260,11 @@ def create_azure_rm_server(connection, server_name)
     network_interface_name = @conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"
     virtual_network_name = @conf.get_config("virtual_network_name")
     subnet_name = @conf.get_config("subnet_name", false)
+    
     ip_configuration_name = @conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"
+    
+    create_public_ip_configuration = @conf.get_config("create_public_ip_configuration", false) == "false" || @conf.get_config("create_public_ip_configuration", false) == false ? false : true 
+    
     private_ip_allocation_method = @conf.get_config("private_ip_allocation_method", false)
     public_ip_allocation_method = @conf.get_config("public_ip_allocation_method", false)
     subnet_address_list = @conf.get_config("subnet_address_list", false)
@@ -272,6 +279,7 @@ def create_azure_rm_server(connection, server_name)
             offer,
             sku,
             version, 
+            platform,
             location, 
             resource_group, 
             vm_size, 
@@ -286,7 +294,8 @@ def create_azure_rm_server(connection, server_name)
             dns_list, 
             network_address_list, 
             address_prefix,
-            use_public_ip)
+            use_public_ip,
+            create_public_ip_configuration)
 end
 
 def bootstrap_server(server, force, enable_passwordless_sudo)
@@ -353,7 +362,7 @@ def post_provision_cleanup(server, server_tmp_folder)
     server.post_provisioning_cleanup(custom_cleanup_commands, os, remote_server_debug, server_tmp_folder)
 end
 
-def connect_to_server(connection, server_name, requires_root_access=true)
+def connect_to_server(connection, server_name, requires_root_access=true, require_public_ip=true)
     os = @conf.get_config('cloud_operating_system')
     provider = @conf.get_config('provider')
     root_user = @conf.get_config('root_user', false)
@@ -376,7 +385,11 @@ def connect_to_server(connection, server_name, requires_root_access=true)
         end
         enable_passwordless_sudo = true
         resource_group = @conf.get_config('resource_group')
-        use_public_ip = @conf.get_config('use_public_ip', false) == nil ? true : @conf.get_config('use_public_ip', false)
+        if require_public_ip
+            use_public_ip = @conf.get_config('use_public_ip', false) == nil ? true : @conf.get_config('use_public_ip', false)
+        else
+            use_public_ip = false
+        end
         server = connection.server(server_name, resource_group, root_user, root_password, use_public_ip)
     when 'rackspace'
         if requires_root_access
@@ -718,7 +731,7 @@ begin
         raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to start server #{server_name}?", force)
         if confirmed
-            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false, false)
             server.start
         else
             @logger.debug("Not starting server.".yellow)
@@ -730,10 +743,12 @@ begin
         if confirmed
             # Rackspace stop of server is done via ssh command execution as it does not supports stop
             requires_root_access = provider == 'rackspace' ? true : false
-            server, enable_passwordless_sudo = connect_to_server(connection, server_name, requires_root_access)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, requires_root_access, requires_root_access)
             server.stop
             server_ip_addr = server.ip_address
-            remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
+            if server_ip_addr
+                remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
+            end
         else
             @logger.debug("Not stopping server.".yellow)
         end
@@ -747,14 +762,16 @@ begin
         raise "Unsupported operation for provider none" if provider == 'none'
         confirmed = confirm("Are you sure you want to destroy server #{server_name}?", force)
         if confirmed 
-            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false)
+            server, enable_passwordless_sudo = connect_to_server(connection, server_name, false, false)
             server_ip_addr = server.ip_address
             if provider == "azurerm"
                 destroy_azure_rm_server_and_resources(connection, server, server_name)
             else
                 server.destroy
             end
-            remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
+            if server_ip_addr
+                remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
+            end
         else
             @logger.debug("Not destroying server as you did not confirm it.".yellow)
         end
