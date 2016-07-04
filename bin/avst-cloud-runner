@@ -202,8 +202,9 @@ end
 
 def destroy_azure_rm_server_and_resources(connection, server, server_name)
     resource_group = @conf.get_config("resource_group")
-    
-    network_interface = connection.find_network_interface_for_server(server_name, resource_group)
+    virtual_network_resource_group = @conf.get_config("virtual_network_resource_group", false) || resource_group
+    network_interface_resource_group = @conf.get_config("network_interface_resource_group", false) || virtual_network_resource_group
+    network_interface = connection.find_network_interface_for_server(server_name, resource_group, false, network_interface_resource_group)
     storage_account_name = connection.find_storage_account_name_for_server(server_name, resource_group)
     
     # destroy server
@@ -212,27 +213,29 @@ def destroy_azure_rm_server_and_resources(connection, server, server_name)
     azure_destroy_network_interface = @conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)
     @logger.debug "About to destroy network_interface #{azure_destroy_network_interface} and #{network_interface}"
     if azure_destroy_network_interface
-        connection.destroy_network_interface(network_interface.name, resource_group)
+        connection.destroy_network_interface(network_interface.name, network_interface_resource_group)
     end
 
     azure_destroy_public_ip_config = @conf.get_config("azure_destroy_public_ip_config", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_config", false)
     @logger.debug "About to destroy public_ip_config #{azure_destroy_public_ip_config} and #{network_interface}"
     if azure_destroy_public_ip_config and network_interface and network_interface.public_ip_address_id
         ip_configuration_name = network_interface.public_ip_address_id.split("/")[-1]
-        connection.destroy_ip_configuration(ip_configuration_name, resource_group)
+        ip_configuration_resource_group = @conf.get_config("ip_configuration_resource_group", false) || network_interface_resource_group
+        connection.destroy_ip_configuration(ip_configuration_name, ip_configuration_resource_group)
     end
 
     azure_destroy_virtual_network = @conf.get_config("azure_destroy_virtual_network", false) == nil ? false : @conf.get_config("azure_destroy_virtual_network", false)
     @logger.debug "About to destroy virtual_network #{azure_destroy_virtual_network} and #{network_interface}"
     if azure_destroy_virtual_network and network_interface and network_interface.subnet_id
         virtual_network_name = network_interface.subnet_id.split("virtualNetworks/")[-1].split("/")[0]
-        connection.destroy_virtual_network(virtual_network_name, resource_group)
+        connection.destroy_virtual_network(virtual_network_name, virtual_network_resource_group)
     end
 
     azure_destroy_storage_account = @conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)
     @logger.debug "About to destroy storage_account #{azure_destroy_storage_account} and #{storage_account_name}"
     if azure_destroy_storage_account and storage_account_name
-        connection.destroy_storage_account(storage_account_name, resource_group)
+        storage_account_resource_group = @conf.get_config("storage_account_resource_group", false) || resource_group
+        connection.destroy_storage_account(storage_account_name, storage_account_resource_group)
     end
 
     azure_destroy_resource_group = @conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)
@@ -257,11 +260,23 @@ def create_azure_rm_server(connection, server_name)
     resource_group = @conf.get_config("resource_group")
     vm_size = @conf.get_config("vm_size", false)  || "Basic_A0"
     storage_account_name = @conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"
-    network_interface_name = @conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"
-    virtual_network_name = @conf.get_config("virtual_network_name")
-    subnet_name = @conf.get_config("subnet_name", false)
+    storage_account_resource_group = @conf.get_config("storage_account_resource_group", false)
+    connection.check_create_resource_group(storage_account_resource_group, location) if storage_account_resource_group
     
+    network_interface_name = @conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"
+    network_interface_resource_group = @conf.get_config("network_interface_resource_group", false)
+    connection.check_create_resource_group(network_interface_resource_group, location) if network_interface_resource_group
+
+    virtual_network_name = @conf.get_config("virtual_network_name")
+    virtual_network_resource_group = @conf.get_config("virtual_network_resource_group", false)
+    connection.check_create_resource_group(virtual_network_resource_group, location) if virtual_network_resource_group
+
+    subnet_name = @conf.get_config("subnet_name", false)
+    subnet_resource_group = @conf.get_config("subnet_resource_group", false)
+
     ip_configuration_name = @conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"
+    ip_configuration_resource_group = @conf.get_config("ip_configuration_resource_group", false)
+    connection.check_create_resource_group(ip_configuration_resource_group, location) if ip_configuration_resource_group
     
     create_public_ip_configuration = @conf.get_config("create_public_ip_configuration", false) == "false" || @conf.get_config("create_public_ip_configuration", false) == false ? false : true 
     
@@ -295,7 +310,12 @@ def create_azure_rm_server(connection, server_name)
             network_address_list, 
             address_prefix,
             use_public_ip,
-            create_public_ip_configuration)
+            create_public_ip_configuration,
+            storage_account_resource_group,
+            virtual_network_resource_group, 
+            network_interface_resource_group, 
+            ip_configuration_resource_group,
+            subnet_resource_group)
 end
 
 def bootstrap_server(server, force, enable_passwordless_sudo)
@@ -387,10 +407,17 @@ def connect_to_server(connection, server_name, requires_root_access=true, requir
         resource_group = @conf.get_config('resource_group')
         if require_public_ip
             use_public_ip = @conf.get_config('use_public_ip', false) == nil ? true : @conf.get_config('use_public_ip', false)
+
         else
             use_public_ip = false
         end
-        server = connection.server(server_name, resource_group, root_user, root_password, use_public_ip)
+        if use_public_ip
+            ip_configuration_resource_group = @conf.get_config('ip_configuration_resource_group', false)
+        end
+
+        network_interface_resource_group = @conf.get_config('network_interface_resource_group', false) 
+
+        server = connection.server(server_name, resource_group, root_user, root_password, use_public_ip, network_interface_resource_group, ip_configuration_resource_group)
     when 'rackspace'
         if requires_root_access
             root_password = @conf.get_config('root_password')
