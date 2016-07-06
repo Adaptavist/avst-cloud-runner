@@ -783,8 +783,8 @@ begin
         do_not_log = true
         @logger.debug("Called status".green)
         raise "Unsupported operation for provider none" if provider == 'none'
-        resource_group = @conf.get_config("resource_group")
         if provider == "azurerm"
+            resource_group = @conf.get_config("resource_group")
             connection.server_status(server_name, resource_group)
         else
             connection.server_status(server_name)
