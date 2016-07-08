@@ -206,7 +206,9 @@ def destroy_azure_rm_server_and_resources(connection, server, server_name)
     network_interface_resource_group = @conf.get_config("network_interface_resource_group", false) || virtual_network_resource_group
     network_interface = connection.find_network_interface_for_server(server_name, resource_group, false, network_interface_resource_group)
     storage_account_name = connection.find_storage_account_name_for_server(server_name, resource_group)
-    
+    azure_destroy_availability_set = @conf.get_config("azure_destroy_availability_set", false) == nil ? false : @conf.get_config("azure_destroy_availability_set", false)
+    availability_set_name = connection.find_availability_set_name_for_server(server_name, resource_group, azure_destroy_availability_set)
+
     # destroy server
     server.destroy
 
@@ -238,6 +240,11 @@ def destroy_azure_rm_server_and_resources(connection, server, server_name)
         connection.destroy_storage_account(storage_account_name, storage_account_resource_group)
     end
 
+    @logger.debug "About to destroy availability_set #{azure_destroy_availability_set} and #{availability_set_name}"
+    if azure_destroy_availability_set and availability_set_name
+        connection.destroy_storage_account(availability_set_name, resource_group)
+    end
+
     azure_destroy_resource_group = @conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)
     if azure_destroy_resource_group
         connection.destroy_resource_group(resource_group)
@@ -262,6 +269,8 @@ def create_azure_rm_server(connection, server_name)
     storage_account_name = @conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"
     storage_account_resource_group = @conf.get_config("storage_account_resource_group", false)
     connection.check_create_resource_group(storage_account_resource_group, location) if storage_account_resource_group
+
+    availability_set_name = @conf.get_config("availability_set_name", false)
     
     network_interface_name = @conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"
     network_interface_resource_group = @conf.get_config("network_interface_resource_group", false)
@@ -311,6 +320,7 @@ def create_azure_rm_server(connection, server_name)
             address_prefix,
             use_public_ip,
             create_public_ip_configuration,
+            availability_set_name,
             storage_account_resource_group,
             virtual_network_resource_group, 
             network_interface_resource_group, 
@@ -474,6 +484,7 @@ def test_config(server_name)
         puts "Connection SSH key         #{@conf.get_config('password')}"    
         puts "Instance type:             #{@conf.get_config("vm_size", false) || "Basic_A0"}"
         puts "Storage account name:      #{@conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"}"
+        puts "Availability set name:     #{@conf.get_config("availability_set_name", false)}"
         puts "Virtual Network Name:      #{@conf.get_config("virtual_network_name")}"
         puts "Network Interface Name:    #{@conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"}"
         puts "Subnet Name:               #{@conf.get_config("subnet_name", false)}"
@@ -486,7 +497,7 @@ def test_config(server_name)
         puts "Address Prefix:            #{@conf.get_config("address_prefix", false)}"
         puts "Use Public IP:             #{@conf.get_config("use_public_ip", false)}"
         puts "Destroy Network Interface: #{@conf.get_config("azure_destroy_network_interface", false) == nil ? false : @conf.get_config("azure_destroy_network_interface", false)}"
-        puts "Destroy Public IP:         #{@conf.get_config("azure_destroy_public_ip_counfig", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)}"
+        puts "Destroy Public IP:         #{@conf.get_config("azure_destroy_public_ip_config", false) == nil ? false : @conf.get_config("azure_destroy_public_ip_counfig", false)}"
         puts "Destroy Virtual Network:   #{@conf.get_config("azure_destroy_virtual_network", false) == nil ? false : @conf.get_config("azure_destroy_virtual_network", false)}"
         puts "Destroy Storage Account:   #{@conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)}"
         puts "Destroy Resource Group:    #{@conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)}"

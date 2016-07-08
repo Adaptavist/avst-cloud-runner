@@ -174,11 +174,12 @@ Support for Azure Resource Manager based management was added. To create a serve
 * #network_address_list: ''
 * #address_prefix: ''
 * use_public_ip: true # will return public ip, if set to false, private will be used by bootstrap
-
+* availability_set_name: # name of availability set the server should be assigned to, is in the same RG
 * # define destroy behaviour, if resources should be destroyed with the server
+* azure_destroy_availability_set: false
 * azure_destroy_public_ip_counfig: true
 * azure_destroy_netowrk_interface: true
-* azure_destroy_virtual_network: true
+* azure_destroy_virtual_network: false
 * azure_destroy_storage_account: true
 * azure_destroy_resource_group: true
 
