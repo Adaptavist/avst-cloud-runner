@@ -209,6 +209,12 @@ def destroy_azure_rm_server_and_resources(connection, server, server_name)
     azure_destroy_availability_set = @conf.get_config("azure_destroy_availability_set", false) == nil ? false : @conf.get_config("azure_destroy_availability_set", false)
     availability_set_name = connection.find_availability_set_name_for_server(server_name, resource_group, azure_destroy_availability_set)
 
+    @logger.debug "About to detatch data_disks from #{resource_group}, #{storage_account_name}"
+    data_disks = @conf.get_config("data_disks", false) || {}
+    data_disks.keys.each do |disk_name|
+        connection.detatch_data_disk(server_name, resource_group, storage_account_name, disk_name)
+    end
+
     # destroy server
     server.destroy
 
@@ -296,6 +302,7 @@ def create_azure_rm_server(connection, server_name)
     network_address_list = @conf.get_config("network_address_list", false)
     address_prefix  = @conf.get_config("address_prefix", false)
     use_public_ip = @conf.get_config("use_public_ip", false) == nil ? true : @conf.get_config("use_public_ip", false)
+    data_disks = @conf.get_config("data_disks", false) || {}
     connection.create_server(server_name, 
             user, 
             password,
@@ -320,6 +327,7 @@ def create_azure_rm_server(connection, server_name)
             address_prefix,
             use_public_ip,
             create_public_ip_configuration,
+            data_disks,
             availability_set_name,
             storage_account_resource_group,
             virtual_network_resource_group, 
@@ -502,7 +510,7 @@ def test_config(server_name)
         puts "Destroy Storage Account:   #{@conf.get_config("azure_destroy_storage_account", false) == nil ? false : @conf.get_config("azure_destroy_storage_account", false)}"
         puts "Destroy Resource Group:    #{@conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)}"
         puts "Azure OS Image:            #{@conf.get_config("publisher")} #{@conf.get_config("offer")} #{@conf.get_config("sku")} #{@conf.get_config("version")}"
-
+        puts "Data disks:                #{@conf.get_config("data_disks", false) || {}}"
     when 'rackspace'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:             #{@conf.get_config('root_password', false)}"
