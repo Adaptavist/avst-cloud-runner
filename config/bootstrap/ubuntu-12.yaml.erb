@@ -14,6 +14,7 @@ pre_upload_commands:
 <% unless as_user == 'root' %>
     - <% ssh_dir = "/home/#{as_user}/.ssh"%>
     - <%="mkdir #{ssh_dir}"%>
+    - <%="chown #{as_user} #{ssh_dir}"%>
     - <%="chmod 700 #{ssh_dir}"%>
     - groupadd admin
     - <%="usermod -a -G admin #{as_user}"%>
@@ -23,6 +24,8 @@ pre_upload_commands:
     - mkdir -p /var/opt/puppet/secure/keys
     - '<%="chown #{as_user}: /var/opt/puppet"%>'
     - chmod -R 0500 /var/opt/puppet/secure/keys
+    - echo -e 'alias apply=\"sudo su -c \\\"source /usr/local/rvm/scripts/rvm; puppet apply /etc/puppet/manifests/site.pp --confdir=/etc/puppet  --verbose --detailed-exitcodes\\\" \" ' > /etc/profile.d/puppet.sh
+    - echo -e 'alias prep=\"cd /etc/puppet; sudo su -c \\\"source /usr/local/rvm/scripts/rvm; puppet-runner prepare -c ./hiera-configs -d ./hiera -f ./environments/production/modules/hosts/facts.d -t ./hiera-configs -r ./hiera-configs/puppetfile_dictionary.yaml -o ./Puppetfile -e /var/opt/puppet/secure/keys\\\" \" ' >> /etc/profile.d/puppet.sh
 
 custom_file_uploads:
     "files/id_rsa": "/tmp/."
