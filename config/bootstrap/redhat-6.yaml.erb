@@ -4,7 +4,7 @@ pre_upload_commands:
     - yum -y update
     - yum install -y curl
     - curl -sSL https://raw.github.com/adaptavist/rvm/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.25.33
-    - source /usr/local/rvm/scripts/rvm; rvm install 2.0.0-p481
+    - source /usr/local/rvm/scripts/rvm; rvm install 2.0.0-p576
     - 'echo "gem: --no-ri --no-rdoc" > ~/.gemrc'
     - 'yum install -y git puppet-common puppet augeas-devel augeas unzip'
     - source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet -v 3.7.5 
