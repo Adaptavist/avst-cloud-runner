@@ -135,6 +135,33 @@ On Aws you must also set aws_availability_zone, aws_ebs_size (can be nil), aws_k
 
 For more details and options check config/hiera/global.eyaml
 
+#### Bootstrap configuration
+
+Default bootstrap script (config/bootstrap/"cloud_operating_system.yaml.erb") runs as part of bootstrap phase. It can be replaced by providing "bootstrap_template" parameter with full path to the template. See default file for required format.
+
+There are 3 parts in bootstrap file representing 3 stages:
+- pre_upload_commands - list of commands to run before custom files are uploaded
+- custom_file_uploads - hash of local path to file and path to file to upload on the server
+- post_upload_commands - list of commands to run after custom files are uploaded
+
+To be able to better scale and organize bootstrap scripts you can use additional scripts. Each file that will be included must comply to default bootstrap file format. Commands included in the templates will be appended to bootstrap in order at the end of apropriate bootstrap stage. 
+
+To include all yaml.erb scripts from folders defined as list via extra_bootstrap_templates_folders parameter, inclusion is done in lexical order, so make sure you prefix the files with e.g. 1_file.yaml.erb, 2_file.yaml.erb. Files from folder will be added after default/custom bootstrap file commands. 
+
+```
+extra_bootstrap_templates_folders:
+    - "path"/bootstrap/extra/bootstrap-centos7
+```
+
+You can as well add extra bootstrap scripts by adding extra_bootstrap_templates parameter that contains array of scripts to include in order as defined.
+```
+extra_bootstrap_templates:
+    - "path"/bootstrap/extra/extra2.yaml.erb
+    - "path"/bootstrap/extra/extra1.yaml.erb
+```
+
+It is possible to pass custom data to bootstrap scripts via "custom_data" parameter. 
+
 ### **Rackspace** setup
 
 Check config/hiera/global.eyaml for example Rackspace setup. You have to provide Rackspace credentials, image_id, flavor_id for your instance. If you are running one of the commands bootstrap, provision, stop, you have to provide root_password for your server.

@@ -358,25 +358,84 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
     default_bootstrap_script = "#{File.expand_path("../../", __FILE__)}/config/bootstrap/#{os}.yaml.erb"
     bootstrap_file     = bootstrap_template || default_bootstrap_script
 
-    bootstrap_tempalte = File.read(bootstrap_file)
-    if bootstrap_tempalte
-        bootstrap_yaml = YAML.load(ERB.new(bootstrap_tempalte).result(binding))
-    else
-        bootstrap_yaml = {}
+    custom_data = @conf.get_config("custom_data", false)
+
+    bootstrap_yaml = {}
+    if File.exists? bootstrap_file
+        bootstrap_yaml = YAML.load(ERB.new(File.read(bootstrap_file)).result(binding))
+    end
+
+    bootstrap_templates_folders = @conf.get_config("extra_bootstrap_templates_folders", false)
+    additionali_pre_file_upload_commands = []
+    additionali_custom_file_uploads = {}
+    additionali_post_upload_commands = []
+    if bootstrap_templates_folders
+        bootstrap_templates_folders.each do |bootstrap_templates_folder|
+            if File.directory?(bootstrap_templates_folder)
+                @logger.debug "Adding yaml.erb files from #{bootstrap_templates_folder}"
+                # List all files in the dir, order them and add each for post execution
+                Dir["#{bootstrap_templates_folder}/*.yaml.erb"].sort.each do |f|
+                    @logger.debug "Adding bootstrap commands from #{f}."
+                    extra_conf = YAML.load(ERB.new(File.read(f)).result(binding))
+                    additionali_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
+                    additionali_custom_file_uploads.merge extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
+                    additionali_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
+                end
+            else
+                @logger.warn "Skipping #{bootstrap_templates_folder} as it is not a directory."
+            end
+        end
+    end
+
+    extra_bootstrap_templates = @conf.get_config("extra_bootstrap_templates", false)
+    if extra_bootstrap_templates
+       extra_bootstrap_templates.each do |template|
+            if File.file?(template)
+                @logger.debug "Adding bootstrap commands from #{template}."
+                extra_conf = YAML.load(ERB.new(File.read(template)).result(binding))
+                additionali_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
+                additionali_custom_file_uploads.merge extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
+                additionali_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
+            else
+                @logger.warn "Skipping #{template} as it is not a file."
+            end
+        end 
     end
 
     bootstrap_pre_upload_commands = @conf.get_config("bootstrap_pre_upload_commands", false)
+    @logger.warn "Parameter bootstrap_pre_upload_commands will be deprecated, read documentation for usage patterns." if bootstrap_pre_upload_commands
     pre_upload_commands = bootstrap_pre_upload_commands || bootstrap_yaml['pre_upload_commands'] || []
-    
+    pre_upload_commands += additionali_pre_file_upload_commands
+
     bootstrap_uploads = @conf.get_config("bootstrap_uploads", false)
-
+    @logger.warn "Parameter bootstrap_uploads will be deprecated, read documentation for usage patterns." if bootstrap_uploads
     custom_file_uploads = bootstrap_uploads || bootstrap_yaml['custom_file_uploads'] || {}
+    custom_file_uploads.merge additionali_custom_file_uploads
 
-    bootstrap_post_upload_commands = @conf.get_config("bootstrap_pre_upload_commands", false)
+    bootstrap_post_upload_commands = @conf.get_config("bootstrap_post_upload_commands", false)
+    @logger.warn "Parameter bootstrap_post_upload_commands will be deprecated, read documentation for usage patterns." if bootstrap_post_upload_commands
     post_upload_commands = bootstrap_post_upload_commands || bootstrap_yaml['post_upload_commands'] || []
-    
+    post_upload_commands += additionali_post_upload_commands
+
     remote_server_debug = @conf.get_config("remote_server_debug", false) || false
     debug_structured_log = false
+    @logger.debug "Pre upload bootstrap commands are: \n"
+    pre_upload_commands.each do |c|
+        @logger.debug c
+    end
+    @logger.debug "\n"
+    @logger.debug "Custom bootstrap uploads are: \n"
+    custom_file_uploads.each do |key, value|
+        @logger.debug "#{key} => #{value}"
+    end
+    @logger.debug "\n"
+    @logger.debug "Post upload bootstrap commands are: \n}"
+    post_upload_commands.each do |c|
+        @logger.debug c
+    end
+    @logger.debug "\n"
+    @logger.debug "Done printing bootstrap commands."
+
     server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log, enable_passwordless_sudo)
 end
 
