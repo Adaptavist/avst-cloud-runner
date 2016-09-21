@@ -366,9 +366,9 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
     end
 
     bootstrap_templates_folders = @conf.get_config("extra_bootstrap_templates_folders", false)
-    additionali_pre_file_upload_commands = []
-    additionali_custom_file_uploads = {}
-    additionali_post_upload_commands = []
+    additional_pre_file_upload_commands = []
+    additional_custom_file_uploads = {}
+    additional_post_upload_commands = []
     if bootstrap_templates_folders
         bootstrap_templates_folders.each do |bootstrap_templates_folder|
             if File.directory?(bootstrap_templates_folder)
@@ -377,9 +377,9 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
                 Dir["#{bootstrap_templates_folder}/*.yaml.erb"].sort.each do |f|
                     @logger.debug "Adding bootstrap commands from #{f}."
                     extra_conf = YAML.load(ERB.new(File.read(f)).result(binding))
-                    additionali_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
-                    additionali_custom_file_uploads.merge extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
-                    additionali_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
+                    additional_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
+                    additional_custom_file_uploads.merge! extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
+                    additional_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
                 end
             else
                 @logger.warn "Skipping #{bootstrap_templates_folder} as it is not a directory."
@@ -393,9 +393,9 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
             if File.file?(template)
                 @logger.debug "Adding bootstrap commands from #{template}."
                 extra_conf = YAML.load(ERB.new(File.read(template)).result(binding))
-                additionali_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
-                additionali_custom_file_uploads.merge extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
-                additionali_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
+                additional_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
+                additional_custom_file_uploads.merge! extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
+                additional_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
             else
                 @logger.warn "Skipping #{template} as it is not a file."
             end
@@ -405,17 +405,17 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
     bootstrap_pre_upload_commands = @conf.get_config("bootstrap_pre_upload_commands", false)
     @logger.warn "Parameter bootstrap_pre_upload_commands will be deprecated, read documentation for usage patterns." if bootstrap_pre_upload_commands
     pre_upload_commands = bootstrap_pre_upload_commands || bootstrap_yaml['pre_upload_commands'] || []
-    pre_upload_commands += additionali_pre_file_upload_commands
+    pre_upload_commands += additional_pre_file_upload_commands
 
     bootstrap_uploads = @conf.get_config("bootstrap_uploads", false)
     @logger.warn "Parameter bootstrap_uploads will be deprecated, read documentation for usage patterns." if bootstrap_uploads
     custom_file_uploads = bootstrap_uploads || bootstrap_yaml['custom_file_uploads'] || {}
-    custom_file_uploads.merge additionali_custom_file_uploads
+    custom_file_uploads.merge! additional_custom_file_uploads
 
     bootstrap_post_upload_commands = @conf.get_config("bootstrap_post_upload_commands", false)
     @logger.warn "Parameter bootstrap_post_upload_commands will be deprecated, read documentation for usage patterns." if bootstrap_post_upload_commands
     post_upload_commands = bootstrap_post_upload_commands || bootstrap_yaml['post_upload_commands'] || []
-    post_upload_commands += additionali_post_upload_commands
+    post_upload_commands += additional_post_upload_commands
 
     remote_server_debug = @conf.get_config("remote_server_debug", false) || false
     debug_structured_log = false
