@@ -32,11 +32,11 @@ Adaptavist Cloud Runner
 
 Usage:
   avst-cloud-runner <server-name> (all|create|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
-                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
   avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report]
-                             [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
-  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
-  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD]
+                             [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
+  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
+  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
   avst-cloud-runner -h | --help
 
 Options:
@@ -49,6 +49,7 @@ Options:
   -s SERVER_CONFIG_URL --server_config_url SERVER_CONFIG_URL url to retrieve avst-cloud configuration for the server
   -u SERVER_CONFIG_URL_USERNAME --server_config_url_username SERVER_CONFIG_URL_USERNAME username to use to retireve avst-cloud configuration for the server
   -p SERVER_CONFIG_URL_PASSWORD --server_config_url_password SERVER_CONFIG_URL_PASSWORD password for username to retrieve avst-cloud configuration for the server
+  --show_passwords                   Display passwords in log output, otherwise they are masked with stars
 Arguments:
   server-name   Must be in the format: {customer_shortcode}-{env}{server_id}
                 The customer_shortcode and environment may contain
@@ -94,6 +95,10 @@ def remove_known_hosts_entry(matching, remove_it=true)
     if remove_it
         `sed -i.bck '/#{matching}/d' ~/.ssh/known_hosts`
     end
+end
+
+def mask_message(message)
+    @show_passwords ? message : "*****"
 end
 
 def get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, get_hdd_device_path=true)
@@ -419,9 +424,10 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
 
     remote_server_debug = @conf.get_config("remote_server_debug", false) || false
     debug_structured_log = false
+
     @logger.debug "Pre upload bootstrap commands are: \n"
     pre_upload_commands.each do |c|
-        @logger.debug c
+        @logger.debug c if c
     end
     @logger.debug "\n"
     @logger.debug "Custom bootstrap uploads are: \n"
@@ -429,9 +435,9 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
         @logger.debug "#{key} => #{value}"
     end
     @logger.debug "\n"
-    @logger.debug "Post upload bootstrap commands are: \n}"
+    @logger.debug "Post upload bootstrap commands are: \n"
     post_upload_commands.each do |c|
-        @logger.debug c
+        @logger.debug c if c
     end
     @logger.debug "\n"
     @logger.debug "Done printing bootstrap commands."
@@ -521,7 +527,7 @@ def test_config(server_name)
     puts "Called test-config for #{server_name}".green
     puts "Provider:                  #{@conf.get_config('provider')}"
     puts "Provider user:             #{@conf.get_config('provider_username')}"
-    puts "Provider pass:             #{@conf.get_config('provider_password')}"
+    puts "Provider pass:             #{mask_message(@conf.get_config('provider_password'))}"
     puts "Domain:                    #{@conf.get_config('domain', false)}"
     puts "Customer short code:       #{customer_short_code}"
     puts "Environment:               #{env}"
@@ -533,6 +539,8 @@ def test_config(server_name)
     puts "Branch:                    #{@conf.get_config('branch', false)}"
     puts "Tag reference:             #{@conf.get_config('reference', false)}"
     puts "Bootstrap Script:          #{bootstrap_file}"
+    puts "Extra bootstrap templates  #{@conf.get_config("extra_bootstrap_templates", false)}"
+    puts "Extra bootstrap folders    #{@conf.get_config("extra_bootstrap_templates_folders", false)}" 
     case provider
     when 'aws'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
@@ -572,14 +580,14 @@ def test_config(server_name)
         puts "Data disks:                #{@conf.get_config("data_disks", false) || {}}"
     when 'rackspace'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
-        puts "Root password:             #{@conf.get_config('root_password', false)}"
+        puts "Root password:             #{mask_message(@conf.get_config('root_password', false))}"
     when 'none'
         puts 'Connecting directly to server:'
         puts "ip_address:                #{@conf.get_config('ip_address')}"
-        puts "Root password:             #{@conf.get_config('root_user')}"
-        puts "Root password:             #{@conf.get_config('root_password')}"
+        puts "Root user:                 #{@conf.get_config('root_user')}"
+        puts "Root password:             #{mask_message(@conf.get_config('root_password'))}"
     else
-        raise "ERROR: Currently supported providers are: aws and rackspace.".red
+        raise "ERROR: Currently supported providers are: aws, azure, azure-rm and rackspace.".red
     end
 end
 
@@ -595,6 +603,7 @@ end
 if File.exists? ("#{ENV['HOME']}/.avst-cloud.yaml")
     @global_config = YAML.load(File.read("#{ENV['HOME']}/.avst-cloud.yaml"))
 end
+
 begin
     server_config_url = options["--server_config_url"]
     if server_config_url =~ URI::regexp
@@ -734,28 +743,21 @@ begin
         require 'avst-cloud/aws_connection'
         require 'avst-cloud/aws_server'
         connection = AvstCloud::AwsConnection.new(provider_user, provider_pass, region)
-        AvstCloud::AwsConnection.logger = confl_logger
-        AvstCloud::AwsServer.logger = confl_logger
     when 'azure'
         require 'avst-cloud/azure_connection'
         require 'avst-cloud/azure_server'
         provider_api_url = @conf.get_config("provider_api_url", false) || @global_config['provider_api_url']
         connection = AvstCloud::AzureConnection.new(provider_user, provider_pass, provider_api_url)
-        AvstCloud::AzureConnection.logger = confl_logger
-        AvstCloud::AzureServer.logger = confl_logger
     when 'rackspace'
         require 'avst-cloud/rackspace_connection'
         require 'avst-cloud/rackspace_server'
         region = @conf.get_config("region", false) || @global_config['region'] || :lon
         connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
-        AvstCloud::RackspaceConnection.logger = confl_logger
-        AvstCloud::RackspaceServer.logger = confl_logger
     when 'azurerm'
         require 'avst-cloud/azure_rm_connection'
         require 'avst-cloud/azure_rm_server'
         tenant_id = @conf.get_config("tenant_id")
         subscription_id = @conf.get_config("subscription_id")
-        puts "Connection"
         connection = AvstCloud::AzureRmConnection.new(provider_user, provider_pass, tenant_id, subscription_id)
     when 'none'
         # when provider is nil, connection not needed, only bootstrap, provision and cleanup commands are allowed
@@ -763,9 +765,12 @@ begin
     else
         raise "ERROR: Currently supported providers are: azure, azurerm aws and rackspace.".red
     end
+    
     @logger = confl_logger ? confl_logger : Logger.new($stdout)
-    AvstCloud::SshCommandTask.logger = @logger
-    AvstCloud::ScpTask.logger = @logger
+    require 'avst-cloud/logging'
+    Logging.logger = @logger
+    @show_passwords = options["--show_passwords"] || @conf.get_config("show_passwords", false) || false
+    Logging.show_passwords = @show_passwords
 
     has_errors=false
 
