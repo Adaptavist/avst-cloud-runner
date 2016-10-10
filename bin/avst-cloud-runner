@@ -32,11 +32,11 @@ Adaptavist Cloud Runner
 
 Usage:
   avst-cloud-runner <server-name> (all|create|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
-                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
+                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry]
   avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report]
                              [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
   avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
-  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
+  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry]
   avst-cloud-runner -h | --help
 
 Options:
@@ -50,6 +50,7 @@ Options:
   -u SERVER_CONFIG_URL_USERNAME --server_config_url_username SERVER_CONFIG_URL_USERNAME username to use to retireve avst-cloud configuration for the server
   -p SERVER_CONFIG_URL_PASSWORD --server_config_url_password SERVER_CONFIG_URL_PASSWORD password for username to retrieve avst-cloud configuration for the server
   --show_passwords                   Display passwords in log output, otherwise they are masked with stars
+  --dry                              Prints out commands to be executed in bootstrap and post provision phase, does not execute them, use with bootstrap and clean command
 Arguments:
   server-name   Must be in the format: {customer_shortcode}-{env}{server_id}
                 The customer_shortcode and environment may contain
@@ -341,7 +342,7 @@ def create_azure_rm_server(connection, server_name)
             subnet_resource_group)
 end
 
-def bootstrap_server(server, force, enable_passwordless_sudo)
+def bootstrap_server(server, force, enable_passwordless_sudo, print_commands_only=false)
     server_name = server.server_name
     # domain and fqdn are overwritten for Vagrant below
     domain            = @conf.get_config("domain")
@@ -441,8 +442,10 @@ def bootstrap_server(server, force, enable_passwordless_sudo)
     end
     @logger.debug "\n"
     @logger.debug "Done printing bootstrap commands."
-
-    server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log, enable_passwordless_sudo)
+    unless print_commands_only
+        server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log, enable_passwordless_sudo)
+        @logger.debug "Done executing bootstrap commands."
+    end
 end
 
 
@@ -458,11 +461,57 @@ def provision_server(server, server_tmp_folder)
     server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder)
 end
 
-def post_provision_cleanup(server, server_tmp_folder)
+def post_provision_commands(server, server_tmp_folder, print_commands_only=false)
     os = @conf.get_config('cloud_operating_system')
-    custom_cleanup_commands = @conf.get_config('custom_cleanup_commands')
-    remote_server_debug = true
-    server.post_provisioning_cleanup(custom_cleanup_commands, os, remote_server_debug, server_tmp_folder)
+    remote_server_debug = @conf.get_config("remote_server_debug", false) || false
+    skip_cleanup = @conf.get_config("skip_cleanup", false) || false
+    custom_data = @conf.get_config("custom_data", false)
+
+    extra_post_provision_templates_folders = @conf.get_config("extra_post_provision_templates_folders", false)
+    additional_post_provision_commands = []
+    if extra_post_provision_templates_folders
+        extra_post_provision_templates_folders.each do |template_folder|
+            if File.directory?(template_folder)
+                @logger.debug "Adding yaml.erb files from #{template_folder}"
+                Dir["#{template_folder}/*.yaml.erb"].sort.each do |f|
+                    @logger.debug "Adding post provision commands from #{f}."
+                    extra_conf = YAML.load(ERB.new(File.read(f)).result(binding))
+                    additional_post_provision_commands += extra_conf['post_provision_commands'] if extra_conf['post_provision_commands']
+                end
+            else
+                @logger.warn "Skipping #{template_folder} as it is not a directory."
+            end
+        end
+    end
+
+    extra_post_provision_templates = @conf.get_config("extra_post_provision_templates", false)
+    if extra_post_provision_templates
+       extra_post_provision_templates.each do |template|
+            if File.file?(template)
+                @logger.debug "Adding post provision commands from #{template}."
+                extra_conf = YAML.load(ERB.new(File.read(template)).result(binding))
+                additional_post_provision_commands += extra_conf['post_provision_commands'] if extra_conf['post_provision_commands']
+            else
+                @logger.warn "Skipping #{template} as it is not a file."
+            end
+        end 
+    end
+
+    custom_post_provision_commands = @conf.get_config('custom_post_provision_commands', false) || []
+    custom_cleanup_commands = @conf.get_config('custom_cleanup_commands', false) || []
+    custom_post_provision_commands += custom_cleanup_commands
+    additional_post_provision_commands += custom_post_provision_commands
+    @logger.debug "\n"
+    @logger.debug "Post provision commands are: \n"
+    additional_post_provision_commands.each do |c|
+        @logger.debug c if c
+    end
+    @logger.debug "\n"
+    @logger.debug "Done printing post provision commands."
+    unless print_commands_only
+        server.post_provisioning_commands(additional_post_provision_commands, os, remote_server_debug, server_tmp_folder, !skip_cleanup)
+        @logger.debug "Done execiting post provision commands."
+    end
 end
 
 def connect_to_server(connection, server_name, requires_root_access=true, require_public_ip=true)
@@ -773,6 +822,7 @@ begin
     Logging.show_passwords = @show_passwords
 
     has_errors=false
+    dry = options['--dry'] || false
 
     if options['all']
         @logger.debug("Called all".green)
@@ -796,10 +846,8 @@ begin
             bootstrap_server(server, force, enable_passwordless_sudo)
             avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
             provision_server(server, avst_cloud_tmp_folder)
-            skip_clean = @conf.get_config("skip_clean", false) || false
-            unless skip_clean
-                post_provision_cleanup(server, avst_cloud_tmp_folder)
-            end
+            post_provision_commands(server, avst_cloud_tmp_folder)
+            
         else
             @logger.debug("Not creating server, you have to confirm.".yellow)
         end 
@@ -824,14 +872,14 @@ begin
             @logger.debug("Not creating server, you have to confirm.".yellow)
         end
     elsif options['clean']
-        @logger.debug("Called clean".green)
+        @logger.debug("Called clean with only print commands set to: #{dry}".green)
         avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
         # In case it is default with timestamp remove all
         if (avst_cloud_tmp_folder =~ /\/tmp\/avst_cloud_tmp_/)
             avst_cloud_tmp_folder = "/tmp/avst_cloud_tmp_*"
         end
         server, enable_passwordless_sudo = connect_to_server(connection, server_name)
-        post_provision_cleanup(server, avst_cloud_tmp_folder)
+        post_provision_commands(server, avst_cloud_tmp_folder, dry)
         @logger.debug("Clean done".green)
     elsif options['test-config']
         do_not_log = true
@@ -896,9 +944,9 @@ begin
         avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
         provision_server(server, avst_cloud_tmp_folder)
     elsif options['bootstrap']
-        @logger.debug("Called bootstrap".green)
+        @logger.debug("Called bootstrap with only print commands set to: #{dry}".green)
         server, enable_passwordless_sudo = connect_to_server(connection, server_name)
-        bootstrap_server(server, force, enable_passwordless_sudo)
+        bootstrap_server(server, force, enable_passwordless_sudo, dry)
         @logger.debug("Bootstrap done".green)
     elsif options['find_server']
         do_not_log = true
