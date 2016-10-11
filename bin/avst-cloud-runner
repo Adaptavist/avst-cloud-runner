@@ -386,6 +386,9 @@ def bootstrap_server(server, force, enable_passwordless_sudo, print_commands_onl
                     additional_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
                     additional_custom_file_uploads.merge! extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
                     additional_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
+                    if extra_conf['failure']
+                        raise "Required parameters missing in bootstrap template file #{f}: #{extra_conf['failure']}"
+                    end
                 end
             else
                 @logger.warn "Skipping #{bootstrap_templates_folder} as it is not a directory."
@@ -402,6 +405,9 @@ def bootstrap_server(server, force, enable_passwordless_sudo, print_commands_onl
                 additional_pre_file_upload_commands += extra_conf['pre_upload_commands'] if extra_conf['pre_upload_commands']
                 additional_custom_file_uploads.merge! extra_conf['custom_file_uploads'] if extra_conf['custom_file_uploads']
                 additional_post_upload_commands += extra_conf['post_upload_commands'] if extra_conf['post_upload_commands']
+                if extra_conf['failure']
+                    raise "Required parameters missing in bootstrap template file #{template}: #{extra_conf['failure']}"
+                end
             else
                 @logger.warn "Skipping #{template} as it is not a file."
             end
@@ -442,6 +448,7 @@ def bootstrap_server(server, force, enable_passwordless_sudo, print_commands_onl
     end
     @logger.debug "\n"
     @logger.debug "Done printing bootstrap commands."
+
     unless print_commands_only
         server.bootstrap(pre_upload_commands, custom_file_uploads, post_upload_commands, remote_server_debug, debug_structured_log, enable_passwordless_sudo)
         @logger.debug "Done executing bootstrap commands."
@@ -477,6 +484,9 @@ def post_provision_commands(server, server_tmp_folder, print_commands_only=false
                     @logger.debug "Adding post provision commands from #{f}."
                     extra_conf = YAML.load(ERB.new(File.read(f)).result(binding))
                     additional_post_provision_commands += extra_conf['post_provision_commands'] if extra_conf['post_provision_commands']
+                    if extra_conf['failure']
+                        raise "Required parameters missing in post provision template file #{f}: #{extra_conf['failure']}"
+                    end
                 end
             else
                 @logger.warn "Skipping #{template_folder} as it is not a directory."
@@ -491,6 +501,9 @@ def post_provision_commands(server, server_tmp_folder, print_commands_only=false
                 @logger.debug "Adding post provision commands from #{template}."
                 extra_conf = YAML.load(ERB.new(File.read(template)).result(binding))
                 additional_post_provision_commands += extra_conf['post_provision_commands'] if extra_conf['post_provision_commands']
+                if extra_conf['failure']
+                    raise "Required parameters missing in post provision template file #{template}: #{extra_conf['failure']}"
+                end
             else
                 @logger.warn "Skipping #{template} as it is not a file."
             end
@@ -506,6 +519,7 @@ def post_provision_commands(server, server_tmp_folder, print_commands_only=false
     additional_post_provision_commands.each do |c|
         @logger.debug c if c
     end
+
     @logger.debug "\n"
     @logger.debug "Done printing post provision commands."
     unless print_commands_only
