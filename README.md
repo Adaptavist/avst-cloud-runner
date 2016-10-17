@@ -338,6 +338,10 @@ Bootstrap loads erb templates from config/bootstrap/{os}.sh.erb substitutes vari
 
 You can define your custom bootstrap script by providing custom_bootstrap_script config in hiera setup. Define valid erb template path. An example setup is in global.eyaml and file is config/bootstrap/custom.sh.erb
 
+## Post provision commands
+
+After provisionning phase is done, you can setup custom commands to run on the server. By default the cleanup commnads are executed. You can specify additional commands to get executed by defining extra_post_provision_templates_folders array with folders containing yaml.erb templates and extra_post_provision_templates array containing yaml.erb files. Templates from folders are loaded in alphabetical order. Each yaml.erb file must contain post_provision_commands array of commands. Extra commands can be defined in server config file by custom_post_provision_commands array. In the templates you can use bindings and especially custom_data array that you can define in the server config files. You can use custom_cleanup_commands array in the server config file to define array of commmands to run as last in the process. Commands from templates are added in order, ordered temapltes from folders, templates defined via extra_post_provision_templates in order defined, custom_post_provision_commands array and custom_cleanup_commands from server config file.
+
 ## Reporting
 
 Reporting to confluence via confluence reporter gem. Set following params:
