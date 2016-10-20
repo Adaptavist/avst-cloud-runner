@@ -1,0 +1,7 @@
+---
+post_upload_commands:
+    - if ! grep -q 'minlen=14' /etc/security/pwquality.conf; then echo 'minlen=14' >> /etc/security/pwquality.conf; fi
+    - if ! grep -q 'dcredit=-1' /etc/security/pwquality.conf; then echo 'dcredit=-1' >> /etc/security/pwquality.conf; fi
+    - if ! grep -q 'ucredit=-1' /etc/security/pwquality.conf; then echo 'ucredit=-1' >> /etc/security/pwquality.conf; fi
+    - if ! grep -q 'ocredit=-1' /etc/security/pwquality.conf; then echo 'ocredit=-1' >> /etc/security/pwquality.conf; fi
+    - if ! grep -q 'lcredit=-1' /etc/security/pwquality.conf; then echo 'lcredit=-1' >> /etc/security/pwquality.conf; fi

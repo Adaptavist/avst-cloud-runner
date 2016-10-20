@@ -1,0 +1,6 @@
+---
+post_upload_commands:
+    - if ! grep -q 'install dccp /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install dccp /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install sctp /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install sctp /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install rds /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install rds /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install tipc /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install tipc /bin/true' >> /etc/modprobe.d/CIS.conf; fi

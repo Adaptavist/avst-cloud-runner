@@ -1,0 +1,24 @@
+---
+
+<%unless custom_data['instance_name'] && custom_data['instance_user'] && custom_data['instance_group']%>
+failure: "custom_data['instance_name'] missing."
+<%end%>
+
+
+post_provision_commands:
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install
+    - chown <%=custom_data['instance_user']%>:<%=custom_data['instance_group']%> /opt/<%=custom_data['instance_name']%>/install/conf/context.xml
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/conf/context.xml
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/conf/logging.properties
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/conf/server.xml
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/conf/tomcat-users.xml
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/conf/web.xml
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/conf
+    - chmod o-rwx /opt/<%=custom_data['instance_name']%>/install/logs
+    - chmod o-rwx /opt/<%=custom_data['instance_name']%>/install/temp
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/bin
+    - chmod 770 /opt/<%=custom_data['instance_name']%>/install/conf/catalina.policy
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/webapps
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/atlassian-jira
+    - chmod g-w,o-rwx /opt/<%=custom_data['instance_name']%>/install/conf/catalina.properties
+

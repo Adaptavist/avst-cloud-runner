@@ -1,0 +1,27 @@
+---
+post_upload_commands:
+    - if ! grep -q 'fs.suid_dumpable = 0 1.6.1' /etc/sysctl.conf; then echo 'fs.suid_dumpable = 0 1.6.1' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv4.conf.all.send_redirects=0' /etc/sysctl.conf; then echo 'net.ipv4.conf.all.send_redirects=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv4.conf.default.send_redirects=0' /etc/sysctl.conf; then echo 'net.ipv4.conf.default.send_redirects=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv4.conf.all.accept_redirects=0' /etc/sysctl.conf; then echo 'net.ipv4.conf.all.accept_redirects=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv4.conf.default.accept_redirects=0' /etc/sysctl.conf; then echo 'net.ipv4.conf.default.accept_redirects=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv4.conf.all.log_martians=1' /etc/sysctl.conf; then echo 'net.ipv4.conf.all.log_martians=1' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv4.conf.default.log_martians=1' /etc/sysctl.conf; then echo 'net.ipv4.conf.default.log_martians=1' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv6.conf.all.accept_ra=0' /etc/sysctl.conf; then echo 'net.ipv6.conf.all.accept_ra=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv6.conf.default.accept_ra=0' /etc/sysctl.conf; then echo 'net.ipv6.conf.default.accept_ra=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv6.conf.all.accept_redirects=0' /etc/sysctl.conf; then echo 'net.ipv6.conf.all.accept_redirects=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv6.conf.default.accept_redirects=0' /etc/sysctl.conf; then echo 'net.ipv6.conf.default.accept_redirects=0' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'net.ipv6.conf.all.disable_ipv6=1' /etc/sysctl.conf; then echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf; fi
+    - /sbin/sysctl -w net.ipv4.conf.all.send_redirects=0
+    - /sbin/sysctl -w net.ipv4.conf.default.send_redirects=0
+    - /sbin/sysctl -w net.ipv4.conf.all.accept_redirects=0
+    - /sbin/sysctl -w net.ipv4.conf.default.accept_redirects=0
+    - /sbin/sysctl -w net.ipv4.conf.all.log_martians=1
+    - /sbin/sysctl -w net.ipv4.conf.default.log_martians=1
+    - /sbin/sysctl -w net.ipv4.route.flush=1
+    - /sbin/sysctl -w net.ipv6.conf.all.accept_ra=0
+    - /sbin/sysctl -w net.ipv6.conf.default.accept_ra=0
+    - /sbin/sysctl -w net.ipv6.conf.all.accept_redirects=0
+    - /sbin/sysctl -w net.ipv6.conf.default.accept_redirects=0
+    - /sbin/sysctl -w net.ipv6.route.flush=1
+    - /sbin/sysctl net.ipv6.conf.all.disable_ipv6=1

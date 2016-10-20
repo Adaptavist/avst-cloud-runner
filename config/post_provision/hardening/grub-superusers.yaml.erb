@@ -1,0 +1,8 @@
+---
+
+<%unless custom_data['grub_superuser'] or custom_data['grub2_mkpasswd_pbkdf2_encrypted_password'] or custom_data['list_of_grub_superusers']%>
+failure: "custom_data['grub_superuser'] or custom_data['grub2_mkpasswd_pbkdf2_encrypted_password'] or custom_data['list_of_grub_superusers'] missing."
+<%end%>
+
+post_provision_commands:
+    - <%= "if [ ! -f /etc/grub.d/01set_superusers ]; then cat <<EOF set superusers='#{custom_data['list_of_grub_superusers']}' password_pbkdf2 #{grub_superuser} #{custom_data['grub2_mkpasswd_pbkdf2_encrypted_password']} EOF >> /etc/grub.d/01set_superusers; fi" %>

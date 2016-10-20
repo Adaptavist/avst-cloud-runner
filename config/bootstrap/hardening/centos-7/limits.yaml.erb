@@ -1,0 +1,3 @@
+---
+post_upload_commands:
+    - if ! grep -q '* hard core 0' /etc/security/limits.conf; then echo '* hard core 0' >> /etc/security/limits.conf; fi
