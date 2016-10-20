@@ -1,0 +1,58 @@
+---
+post_upload_commands:
+    - rm -f /etc/at.deny
+    - touch /etc/at.allow
+    - chown root:root /etc/at.allow
+    - chmod og-rwx /etc/at.allow
+    - rm -f /etc/cron.deny
+    - touch /etc/cron.allow
+    - chmod og-rwx /etc/cron.allow
+    - chown root:root /etc/cron.allow
+    - chown root:root /etc/crontab
+    - chmod og-rwx /etc/crontab
+    - chown root:root /etc/cron.hourly
+    - chmod og-rwx /etc/cron.hourly
+    - chown root:root /etc/cron.daily
+    - chmod og-rwx /etc/cron.daily
+    - chown root:root /etc/cron.weekly
+    - chmod og-rwx /etc/cron.weekly
+    - chown root:root /etc/cron.monthly
+    - chmod og-rwx /etc/cron.monthly
+    - chown root:root /etc/cron.d
+    - chmod og-rwx /etc/cron.d
+    - chmod 755 /var/run/lsm
+    - echo 'Authorized uses only. All activity may be monitored and reported.' > /etc/issue.net
+    - chown root:root /etc/issue.net
+    - chmod 644 /etc/issue.net
+    - echo 'Authorized uses only. All activity may be monitored and reported.' > /etc/issue
+    - chown root:root /etc/issue
+    - chmod 644 /etc/issue
+    - touch /etc/motd
+    - chown root:root /etc/motd
+    - chmod 644 /etc/motd
+    - sed -i -e's/umask 002/umask 077/g' -e's/umask 022/umask 077/g' /etc/bashrc
+    - sed -i -e's/PASS_MIN_DAYS   0/PASS_MIN_DAYS   7/g' /etc/login.defs
+    - touch /var/log/daemon.log
+    - chown root:root /var/log/daemon.log
+    - chmod g-wx,o-rwx /var/log/daemon.log
+    - touch /var/log/kern.log
+    - chown root:root /var/log/kern.log
+    - chmod g-wx,o-rwx /var/log/kern.log
+    - touch /var/log/syslog
+    - chown root:root /var/log/syslog
+    - chmod g-wx,o-rwx /var/log/syslog
+    - touch /var/log/unused.log
+    - chown root:root /var/log/unused.log
+    - chmod g-wx,o-rwx /var/log/unused.log
+    - chown root:root /var/log/maillog
+    - chmod og-rwx /var/log/maillog
+    - chown root:root /var/log/messages
+    - chown root:root /var/log/secure
+    - chown root:root /var/log/cron
+    - chown root:root /var/log/spooler
+    - chown root:root /var/log/boot.log
+    - chmod og-rwx /var/log/messages
+    - chmod og-rwx /var/log/secure
+    - chmod og-rwx /var/log/cron
+    - chmod og-rwx /var/log/spooler
+    - chmod og-rwx /var/log/boot.log

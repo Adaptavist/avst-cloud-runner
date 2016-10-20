@@ -1,0 +1,3 @@
+---
+post_upload_commands:
+    - if ! grep -q 'umask 027' /etc/sysconfig/init; then echo 'umask 027' >> /etc/sysconfig/init; fi

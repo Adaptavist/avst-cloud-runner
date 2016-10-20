@@ -1,0 +1,8 @@
+---
+post_upload_commands:
+    - if ! grep -q 'auth,user.* /var/log/messages' /etc/rsyslog.conf; then echo 'auth,user.* /var/log/messages' >> /etc/rsyslog.conf; fi
+    - if ! grep -q 'kern.* /var/log/kern.log' /etc/rsyslog.conf; then echo 'kern.* /var/log/kern.log' >> /etc/rsyslog.conf; fi
+    - if ! grep -q 'daemon.* /var/log/daemon.log' /etc/rsyslog.conf; then echo 'daemon.* /var/log/daemon.log' >> /etc/rsyslog.conf; fi
+    - if ! grep -q 'syslog.* /var/log/syslog' /etc/rsyslog.conf; then echo 'syslog.* /var/log/syslog' >> /etc/rsyslog.conf; fi
+    - if ! grep -q 'lpr,news,uucp,local0,local1,local2,local3,local4,local5,local6.* /var/log/unused.log' /etc/rsyslog.conf; then echo 'lpr,news,uucp,local0,local1,local2,local3,local4,local5,local6.* /var/log/unused.log' >> /etc/rsyslog.conf; fi
+    - pkill -HUP rsyslogd

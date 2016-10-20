@@ -1,0 +1,6 @@
+---
+post_upload_commands:
+    - if ! grep -q 'ClientAliveInterval 300' /etc/ssh/sshd_config; then echo 'ClientAliveInterval 300' >> /etc/ssh/sshd_config; fi
+    - if ! grep -q 'ClientAliveCountMax 0' /etc/ssh/sshd_config; then echo 'ClientAliveCountMax 0' >> /etc/ssh/sshd_config; fi
+    - if ! grep -q 'MaxAuthTries 4' /etc/ssh/sshd_config; then echo 'MaxAuthTries 4' >> /etc/ssh/sshd_config; fi
+    - if ! grep -q 'Banner /etc/issue.net' /etc/ssh/sshd_config; then echo 'Banner /etc/issue.net' >> /etc/ssh/sshd_config; fi

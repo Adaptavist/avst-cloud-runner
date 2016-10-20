@@ -1,0 +1,9 @@
+---
+
+post_provision_commands:
+    - if ! grep -q 'export MYSQL_HISTFILE=/dev/null' /etc/profile; then echo 'export MYSQL_HISTFILE=/dev/null' >> /etc/profile; fi
+    - chmod 700 /usr/bin/mysql
+    - chmod 700 /var/lib/mysql
+    - chmod 700 /usr/bin/mysqladmin
+    - chmod 700 /usr/sbin/mysqld
+    

@@ -17,17 +17,17 @@ pre_upload_commands:
     - <%="if [ ! -f /usr/bin/hostnamectl ]; then  /etc/init.d/network restart; else /usr/bin/hostnamectl set-hostname  #{fqdn}; fi" %>
     - mount -t xfs | egrep ' / '.*.inode64 > /dev/null 2>&1 && (mount -o remount,inode32 /;mount -o remount,inode64 /)
     - source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet-runner
-    - mkdir /root/.ssh
+    - if [ ! -d /root/.ssh ]; then mkdir /root/.ssh; fi
     - chmod 700 /root/.ssh
     <% unless as_user == 'root' %>
     - <% ssh_dir = "/home/#{as_user}/.ssh"%>
-    - <%="mkdir #{ssh_dir}"%>
+    - <%="if [ ! -d #{ssh_dir} ]; then mkdir #{ssh_dir}; fi"%>
     - <%="chown #{as_user} #{ssh_dir}"%>
     - <%="chmod 700 #{ssh_dir}"%>
     - groupadd admin
     - <%="usermod -a -G admin #{as_user}"%>
     <%end%>
-    - mkdir -p /var/opt/puppet/secure/keys
+    - if [ ! -d /var/opt/puppet/secure/keys ]; then mkdir -p /var/opt/puppet/secure/keys; fi
     - '<%="chown #{as_user}: /var/opt/puppet"%>'
     - chmod -R 0500 /var/opt/puppet/secure/keys
     - echo -e 'DEVICE=ens3\nONBOOT=yes\nBOOTPROTO=dhcp\n' > /etc/sysconfig/network-scripts/ifcfg-ens3

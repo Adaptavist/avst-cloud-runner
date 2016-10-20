@@ -1,0 +1,17 @@
+---
+
+<%unless custom_data['instance_name'] or custom_data['error_page_location']%>
+failure: "custom_data['instance_name'] or custom_data['error_page_location'] missing."
+<%end%>
+
+post_provision_commands:
+    - <%= "if [ -f /opt/#{custom_data['instance_name']}/install/bin/catalina.sh ]; then mv /opt/#{custom_data['instance_name']}/install/bin/catalina.sh /opt/#{custom_data['instance_name']}/install/bin/catalina.sh_backup; fi"%>
+    - <%= "if [ -f /opt/#{custom_data['instance_name']}/install/conf/context.xml ]; then mv /opt/#{custom_data['instance_name']}/install/conf/context.xml /opt/#{custom_data['instance_name']}/install/conf/context.xml_backup; fi" %>
+    - <%= "if [ -f /opt/#{custom_data['instance_name']}/install/bin/startup.sh ]; then mv /opt/#{custom_data['instance_name']}/install/bin/startup.sh /opt/#{custom_data['instance_name']}/install/bin/startup.sh_backup; fi" %>
+    - <%= "if ! grep -q '<error-page>' /opt/#{custom_data['instance_name']}/install/conf/web.xml; then sed -i -e 's|<\/web-app>|<error-page><exception-type>java.lang.Throwable<\/exception-type><location>/error.jsp<\/location><\/error-page><\/web-app>|g' /opt/#{custom_data['instance_name']}/install/conf/web.xml; fi" %>
+    - <%= "echo '\<\%\@ page isErrorPage=\"true\" import=\"java.io.*\" contentType=\"text/plain\"\%\>Error found please contact your server administrators to gather more information.' > /opt/#{custom_data['instance_name']}/#{custom_data['error_page_location']}" %>
+    - <%= "sed -i -e 's|SHUTDOWN|TURNDOWN|g' /opt/#{custom_data['instance_name']}/install/conf/server.xml" %>
+    - "service httpd restart"
+
+
+    
