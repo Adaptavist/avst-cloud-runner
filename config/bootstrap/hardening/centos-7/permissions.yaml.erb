@@ -30,6 +30,10 @@ post_upload_commands:
     - touch /etc/motd
     - chown root:root /etc/motd
     - chmod 644 /etc/motd
+<<<<<<< c7150dbd998ed6cd2dcb67501a15f671e64715a8
+=======
+    - sed -i -e's/umask 002/umask 077/g' -e's/umask 022/umask 077/g' /etc/bashrc
+>>>>>>> Added custom bootstrap and post provision scripts to harden centos 7 server
     - sed -i -e's/PASS_MIN_DAYS   0/PASS_MIN_DAYS   7/g' /etc/login.defs
     - touch /var/log/daemon.log
     - chown root:root /var/log/daemon.log
