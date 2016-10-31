@@ -32,11 +32,11 @@ Adaptavist Cloud Runner
 
 Usage:
   avst-cloud-runner <server-name> (all|create|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
-                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry]
-  avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report]
-                             [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
-  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords]
-  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry]
+                               [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry] [--config_dir RUNNER_CONFIG_DIRECTORY]
+  avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] 
+                             [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--config_dir RUNNER_CONFIG_DIRECTORY]
+  avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--config_dir RUNNER_CONFIG_DIRECTORY]
+  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry] [--config_dir RUNNER_CONFIG_DIRECTORY]
   avst-cloud-runner -h | --help
 
 Options:
@@ -51,6 +51,7 @@ Options:
   -p SERVER_CONFIG_URL_PASSWORD --server_config_url_password SERVER_CONFIG_URL_PASSWORD password for username to retrieve avst-cloud configuration for the server
   --show_passwords                   Display passwords in log output, otherwise they are masked with stars
   --dry                              Prints out commands to be executed in bootstrap and post provision phase, does not execute them, use with bootstrap and clean command
+  --config_dir RUNNER_CONFIG_DIRECTORY Sets the configuration directory base to be used when genrating hiera.yaml, if not set defaults to the application base dir
 Arguments:
   server-name   Must be in the format: {customer_shortcode}-{env}{server_id}
                 The customer_shortcode and environment may contain
@@ -762,6 +763,8 @@ begin
 
     # create fully qualified hiera.yaml based on template, to be able to refer to config/hiera
     unless hiera_config
+        # if there is a custom data dir use it, otherwide use base
+        avst_cloud_config_dir = options["--config_dir"] || avst_cloud_base
         hiera_config = "#{avst_cloud_base}/hiera.yaml"
         hiera_config_template = File.read("#{avst_cloud_base}/templates/hiera.yaml.erb")
         File.open("#{hiera_config}", 'w') do |f|
