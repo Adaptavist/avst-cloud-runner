@@ -26,6 +26,7 @@ require 'etc'
 
 avst_cloud_base ="#{File.expand_path("../../", __FILE__)}"
 
+
 # This heredoc describes the options that the application will recognise and parse: https://github.com/docopt/docopt.rb
 doc = <<DOCOPT
 Adaptavist Cloud Runner
@@ -279,13 +280,13 @@ def create_azure_rm_server(connection, server_name)
     location = @conf.get_config("location", false) || "West Europe"
     resource_group = @conf.get_config("resource_group")
     vm_size = @conf.get_config("vm_size", false)  || "Basic_A0"
-    storage_account_name = @conf.get_config("storage_account_name", false) || "#{(server_name.gsub!(/\W/,'') + 'stacc').downcase[0,23]}"
+    storage_account_name = @conf.get_config("storage_account_name", false) || "#{(server_name.gsub(/\W/,'') + 'stacc').downcase[0,23]}"
     storage_account_resource_group = @conf.get_config("storage_account_resource_group", false)
     connection.check_create_resource_group(storage_account_resource_group, location) if storage_account_resource_group
 
     availability_set_name = @conf.get_config("availability_set_name", false)
     
-    network_interface_name = @conf.get_config("network_interface_name", false) || "#{(server_name.gsub!(/\W/,'') + 'nic').downcase[0,23]}"
+    network_interface_name = @conf.get_config("network_interface_name", false) || "#{(server_name.gsub(/\W/,'') + 'nic').downcase[0,23]}"
     network_interface_resource_group = @conf.get_config("network_interface_resource_group", false)
     connection.check_create_resource_group(network_interface_resource_group, location) if network_interface_resource_group
 
@@ -296,7 +297,7 @@ def create_azure_rm_server(connection, server_name)
     subnet_name = @conf.get_config("subnet_name", false)
     subnet_resource_group = @conf.get_config("subnet_resource_group", false)
 
-    ip_configuration_name = @conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"
+    ip_configuration_name = @conf.get_config("ip_configuration_name", false) || "#{(server_name.gsub(/\W/,'') + 'ipconf').downcase[0,23]}"
     ip_configuration_resource_group = @conf.get_config("ip_configuration_resource_group", false)
     connection.check_create_resource_group(ip_configuration_resource_group, location) if ip_configuration_resource_group
     
@@ -457,7 +458,7 @@ def bootstrap_server(server, force, enable_passwordless_sudo, print_commands_onl
 end
 
 
-def provision_server(server, server_tmp_folder)
+def provision_server(server, server_tmp_folder, avst_cloud_config_dir)
     # Provision params
     git    = @conf.get_config("git")
     branch = @conf.get_config("branch", false)
@@ -466,7 +467,7 @@ def provision_server(server, server_tmp_folder)
     puppet_runner_prepare = @conf.get_config("puppet_runner_prepare", false)
     custom_provisioning_commands = @conf.get_config("custom_provisioning_commands", false)
     destination_folder = nil
-    server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder)
+    server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder, avst_cloud_config_dir)
 end
 
 def post_provision_commands(server, server_tmp_folder, print_commands_only=false)
@@ -603,8 +604,9 @@ def test_config(server_name)
     puts "Branch:                    #{@conf.get_config('branch', false)}"
     puts "Tag reference:             #{@conf.get_config('reference', false)}"
     puts "Bootstrap Script:          #{bootstrap_file}"
-    puts "Extra bootstrap templates  #{@conf.get_config("extra_bootstrap_templates", false)}"
-    puts "Extra bootstrap folders    #{@conf.get_config("extra_bootstrap_templates_folders", false)}" 
+    puts "Extra bootstrap templates: #{@conf.get_config("extra_bootstrap_templates", false)}"
+    puts "Extra bootstrap folders:   #{@conf.get_config("extra_bootstrap_templates_folders", false)}" 
+    puts "Config Directory:          #{@avst_cloud_config_dir}"
     case provider
     when 'aws'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
@@ -622,12 +624,12 @@ def test_config(server_name)
         puts "Location:                  #{@conf.get_config('location', false) || "West Europe"}"
         puts "Connection SSH key         #{@conf.get_config('password')}"    
         puts "Instance type:             #{@conf.get_config("vm_size", false) || "Basic_A0"}"
-        puts "Storage account name:      #{@conf.get_config("storage_account_name", false) || "storage_account_#{server_name}"}"
+        puts "Storage account name:      #{@conf.get_config("storage_account_name", false) || "#{(server_name.gsub(/\W/,'') + 'stacc').downcase[0,23]}"}"
         puts "Availability set name:     #{@conf.get_config("availability_set_name", false)}"
         puts "Virtual Network Name:      #{@conf.get_config("virtual_network_name")}"
-        puts "Network Interface Name:    #{@conf.get_config("network_interface_name", false) || "network_interface_#{server_name}"}"
+        puts "Network Interface Name:    #{@conf.get_config("network_interface_name", false) || "#{(server_name.gsub(/\W/,'') + 'nic').downcase[0,23]}"}"
         puts "Subnet Name:               #{@conf.get_config("subnet_name", false)}"
-        puts "IP Configuration Name:     #{@conf.get_config("ip_configuration_name", false) || "ip_configuration_#{server_name}"}"
+        puts "IP Configuration Name:     #{@conf.get_config("ip_configuration_name", false) || "#{(server_name.gsub(/\W/,'') + 'ipconf').downcase[0,23]}"}"
         puts "Private IP Alloc Method:   #{@conf.get_config("private_ip_allocation_method", false)}"
         puts "Public IP Alloc Method:    #{@conf.get_config("public_ip_allocation_method", false)}"
         puts "Subnet Address List:       #{@conf.get_config("subnet_address_list", false)}"
@@ -761,10 +763,12 @@ begin
       "::customer_short_code" => customer_short_code,
     }
 
+    # if there is a custom data dir use it, otherwide use base
+    avst_cloud_config_dir = options["--config_dir"] || "#{avst_cloud_base}/config"
+    @avst_cloud_config_dir = avst_cloud_config_dir
+
     # create fully qualified hiera.yaml based on template, to be able to refer to config/hiera
     unless hiera_config
-        # if there is a custom data dir use it, otherwide use base
-        avst_cloud_config_dir = options["--config_dir"] || avst_cloud_base
         hiera_config = "#{avst_cloud_base}/hiera.yaml"
         hiera_config_template = File.read("#{avst_cloud_base}/templates/hiera.yaml.erb")
         File.open("#{hiera_config}", 'w') do |f|
@@ -862,7 +866,7 @@ begin
             end
             bootstrap_server(server, force, enable_passwordless_sudo)
             avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
-            provision_server(server, avst_cloud_tmp_folder)
+            provision_server(server, avst_cloud_tmp_folder, avst_cloud_config_dir)
             post_provision_commands(server, avst_cloud_tmp_folder)
             
         else
@@ -959,7 +963,7 @@ begin
         @logger.debug("Called provision".green)
         server, enable_passwordless_sudo = connect_to_server(connection, server_name)
         avst_cloud_tmp_folder = @conf.get_config("avst_cloud_tmp_folder", false) || "/tmp/avst_cloud_tmp_#{Time.now.to_i}"
-        provision_server(server, avst_cloud_tmp_folder)
+        provision_server(server, avst_cloud_tmp_folder, avst_cloud_config_dir)
     elsif options['bootstrap']
         @logger.debug("Called bootstrap with only print commands set to: #{dry}".green)
         server, enable_passwordless_sudo = connect_to_server(connection, server_name)
