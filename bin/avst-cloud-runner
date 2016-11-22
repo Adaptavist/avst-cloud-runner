@@ -667,7 +667,7 @@ end
 @logger = Logger.new($stdout)
 @global_config = {}
 if File.exists? ("#{ENV['HOME']}/.avst-cloud.yaml")
-    @global_config = YAML.load(File.read("#{ENV['HOME']}/.avst-cloud.yaml"))
+    @global_config = YAML.load(File.read("#{ENV['HOME']}/.avst-cloud.yaml")) || {}
 end
 
 begin
@@ -763,8 +763,8 @@ begin
       "::customer_short_code" => customer_short_code,
     }
 
-    # if there is a custom data dir use it, otherwide use base
-    avst_cloud_config_dir = options["--config_dir"] || "#{avst_cloud_base}/config"
+    # if there is a custom data dir use it, otherwise use base
+    avst_cloud_config_dir = options["--config_dir"] || @global_config['config_dir'] || "#{avst_cloud_base}/config"
     @avst_cloud_config_dir = avst_cloud_config_dir
 
     # create fully qualified hiera.yaml based on template, to be able to refer to config/hiera

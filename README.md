@@ -40,6 +40,7 @@ Supported options are
 * server_config_url_username, server_config_url_password - if --server_config_url option is used
 * confluence_url, confluence_user, confluence_access_password, confluence_space, confluence_parent_page_id - to setup confluence_reporter
 * provider_username, provider_password, region - provider credentials and region
+* config_dir
 
 ## Minimal Configuration
 
