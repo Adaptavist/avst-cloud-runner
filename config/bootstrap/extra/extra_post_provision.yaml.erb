@@ -1,0 +1,11 @@
+---
+
+<%unless custom_data['my_name']%>
+failure: "custom_data['my_name'] missing."
+<%end%>
+
+post_provision_commands:
+    - <%= "echo 'extra commands from file by #{custom_data['my_name']}'" %>
+
+
+
