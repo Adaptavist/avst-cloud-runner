@@ -41,7 +41,10 @@ skip_clean: false
 
 puppet_runner: "puppet-runner start"
 
-puppet_runner_prepare: "puppet-runner prepare -c ./hiera-configs -d ./hiera -f ./environments/production/modules/hosts/facts.d -t ./hiera-configs -r ./hiera-configs/puppetfile_dictionary.yaml -o ./Puppetfile -e /var/opt/puppet/secure/keys"
+# puppet 3.7.5, make sure you adjust bootstrap to install it
+# puppet_runner_prepare: "puppet-runner prepare -c ./hiera-configs -d ./hiera -f ./environments/production/modules/hosts/facts.d -t ./hiera-configs -r ./hiera-configs/puppetfile_dictionary.yaml -o ./Puppetfile -e /var/opt/puppet/secure/keys"
+# puppet 4.8.1, make sure you adjust bootstrap to install it
+puppet_runner_prepare: "mkdir -p /etc/facter/facts.d; puppet-runner prepare -c ./hiera-configs -d ./hiera -f /etc/facter/facts.d -t ./hiera-configs -r ./hiera-configs/puppetfile_dictionary.yaml -o ./Puppetfile -e /var/opt/puppet/secure/keys"
 
 custom_cleanup_commands:
     - "free -m"
