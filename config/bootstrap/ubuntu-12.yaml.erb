@@ -25,7 +25,7 @@ pre_upload_commands:
     - '<%="chown #{as_user}: /var/opt/puppet"%>'
     - chmod -R 0500 /var/opt/puppet/secure/keys
     - echo -e 'alias apply=\"sudo su -c \\\"source /usr/local/rvm/scripts/rvm; puppet apply /etc/puppet/manifests/site.pp --confdir=/etc/puppet  --verbose --detailed-exitcodes --modulepath /etc/puppet/modules\\\" \" ' > /etc/profile.d/puppet.sh
-    - echo -e 'alias prep=\"cd /etc/puppet; sudo su -c \\\"mkdir -p /etc/facter/facts.d; puppet-runner prepare -c ./hiera-configs -d ./hiera -f /etc/facter/facts.d -t ./hiera-configs -r ./hiera-configs/puppetfile_dictionary.yaml -o ./Puppetfile -e /var/opt/puppet/secure/keys\\\" \" ' >> /etc/profile.d/puppet.sh
+    - echo -e 'alias prep=\"cd /etc/puppet; sudo su -c \\\"mkdir -p /etc/facter/facts.d; puppet-runner prepare -c ./hiera-configs -d ./hiera -f /etc/facter/facts.d -t ./hiera-configs -r ./hiera-configs/puppetfile_dictionary_v4.yaml -o ./Puppetfile -e /var/opt/puppet/secure/keys\\\" \" ' >> /etc/profile.d/puppet.sh
 
 custom_file_uploads:
     "files/id_rsa": "/tmp/."
