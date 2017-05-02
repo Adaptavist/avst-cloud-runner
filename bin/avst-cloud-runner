@@ -32,12 +32,12 @@ doc = <<DOCOPT
 Adaptavist Cloud Runner
 
 Usage:
-  avst-cloud-runner <server-name> (all|create|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL]
+  avst-cloud-runner <server-name> (all|create|start|bootstrap|provision|clean) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-t TAGS]
                                [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry] [--config_dir RUNNER_CONFIG_DIRECTORY]
   avst-cloud-runner <server-name> (destroy|stop) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] 
                              [-k | --remove-known-hosts] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--config_dir RUNNER_CONFIG_DIRECTORY]
   avst-cloud-runner <server-name> (test-config|status) [-f] [-c CONFIG] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--config_dir RUNNER_CONFIG_DIRECTORY]
-  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry] [--config_dir RUNNER_CONFIG_DIRECTORY]
+  avst-cloud-runner (all|create|start|stop|destroy|bootstrap|provision|clean) [-f] [-x CUSTOM] [-s SERVER_CONFIG_URL] [-t TAGS] [--no-report] [-u SERVER_CONFIG_URL_USERNAME] [-p SERVER_CONFIG_URL_PASSWORD] [--show_passwords] [--dry] [--config_dir RUNNER_CONFIG_DIRECTORY]
   avst-cloud-runner -h | --help
 
 Options:
@@ -46,6 +46,7 @@ Options:
   --no-report                        Do not report event to Confluence [default: false]
   -k --remove-known-hosts            Delete entry from ~/.ssh/known_hosts file [default: false]
   -c CONFIG --hiera_config CONFIG    Hiera config file
+  -t TAGS --tags                     Custom tags for AWS servers
   -x CUSTOM --custom_config CUSTOM   Contains JSON that will be available to hiera to configure avst-cloud and passed as facts to created server
   -s SERVER_CONFIG_URL --server_config_url SERVER_CONFIG_URL url to retrieve avst-cloud configuration for the server
   -u SERVER_CONFIG_URL_USERNAME --server_config_url_username SERVER_CONFIG_URL_USERNAME username to use to retireve avst-cloud configuration for the server
@@ -171,8 +172,8 @@ def create_rackspace_server(connection, server_name)
     connection.create_server(server_name, image_id, flavor_id) 
 end
 
-def create_aws_server(connection, server_name)
-    @logger.debug("Creating server #{server_name} on AWS.")
+def create_aws_server(connection, server_name, custom_tags_hash)
+    @logger.debug("Creating server #{server_name} on AWS with tags #{custom_tags_hash}")
     cloud_operating_system = @conf.get_config("cloud_operating_system")
     provider = connection.provider
     region = connection.region
@@ -188,7 +189,7 @@ def create_aws_server(connection, server_name)
     availability_zone      = @conf.get_config("aws_availability_zone")
     vpc                    = @conf.get_config("aws_vpc", false)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, vpc, created_by)
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, vpc, created_by, custom_tags_hash)
 end
 
 def create_azure_server(connection, server_name)
@@ -742,6 +743,13 @@ begin
     do_not_log         = options["--no-report"]
     remove_known_hosts = options["--remove-known-hosts"]
     hiera_config       = options["--hiera_config"]
+    custom_tags        = options["--tags"]
+
+    if custom_tags and custom_tags != ""
+        custom_tags_hash = JSON.parse(custom_tags)
+    else
+        custom_tags_hash = {}
+    end
 
     unless server_name
         # Validation
@@ -853,7 +861,7 @@ begin
             enable_passwordless_sudo = false
             case provider
             when 'aws'
-                server = create_aws_server(connection, server_name)
+                server = create_aws_server(connection, server_name, custom_tags_hash)
             when 'azure'
                 server = create_azure_server(connection, server_name)
             when 'azurerm'
