@@ -887,7 +887,7 @@ begin
         if confirmed
             case provider
             when 'aws'
-               server = create_aws_server(connection, server_name)
+               server = create_aws_server(connection, server_name, custom_tags_hash)
             when 'azure'
                server = create_azure_server(connection, server_name)
             when 'azurerm'
