@@ -30,7 +30,6 @@ post_upload_commands:
     - touch /etc/motd
     - chown root:root /etc/motd
     - chmod 644 /etc/motd
-    - sed -i -e's/umask 002/umask 077/g' -e's/umask 022/umask 077/g' /etc/bashrc
     - sed -i -e's/PASS_MIN_DAYS   0/PASS_MIN_DAYS   7/g' /etc/login.defs
     - touch /var/log/daemon.log
     - chown root:root /var/log/daemon.log
