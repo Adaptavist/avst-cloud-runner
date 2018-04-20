@@ -4,3 +4,11 @@ post_upload_commands:
     - if ! grep -q 'install sctp /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install sctp /bin/true' >> /etc/modprobe.d/CIS.conf; fi
     - if ! grep -q 'install rds /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install rds /bin/true' >> /etc/modprobe.d/CIS.conf; fi
     - if ! grep -q 'install tipc /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install tipc /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install cramfs /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install cramfs /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install freevxfs /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install freevxfs /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install jffs2 /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install jffs2 /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install hfs /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install hfs /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install hfsplus /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install hfsplus /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install squashfs /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install squashfs /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install udf /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install udf /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'options ipv6 disable=1' /etc/modprobe.d/CIS.conf; then echo 'options ipv6 disable=1' >> /etc/modprobe.d/CIS.conf; fi
