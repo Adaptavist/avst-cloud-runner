@@ -29,7 +29,7 @@ post_upload_commands:
     - if ! grep -q 'net.ipv4.conf.all.send_redirects=0' /etc/sysctl.conf; then echo 'net.ipv4.conf.all.send_redirects=0' >> /etc/sysctl.conf; fi
     - if ! grep -q 'net.ipv4.conf.default.send_redirects=0' /etc/sysctl.conf; then echo 'net.ipv4.conf.default.send_redirects=0' >> /etc/sysctl.conf; fi
     - if ! grep -q 'kernel.exec-shield=1' /etc/sysctl.conf; then echo 'kernel.exec-shield=1' >> /etc/sysctl.conf; fi
-    - if ! grep -q 'kernel.randomize_va_space=1' /etc/sysctl.conf; then echo 'kernel.randomize_va_space=1' >> /etc/sysctl.conf; fi
+    - if ! grep -q 'kernel.randomize_va_space=2' /etc/sysctl.conf; then echo 'kernel.randomize_va_space=2' >> /etc/sysctl.conf; fi
     - if ! grep -q 'net.ipv6.conf.default.router_solicitations=0' /etc/sysctl.conf; then echo 'net.ipv6.conf.default.router_solicitations=0' >> /etc/sysctl.conf; fi
     - if ! grep -q 'net.ipv6.conf.default.accept_ra_rtr_pref=0' /etc/sysctl.conf; then echo 'net.ipv6.conf.default.accept_ra_rtr_pref=0' >> /etc/sysctl.conf; fi
     - if ! grep -q 'net.ipv6.conf.default.accept_ra_pinfo=0' /etc/sysctl.conf; then echo 'net.ipv6.conf.default.accept_ra_pinfo=0' >> /etc/sysctl.conf; fi
@@ -76,7 +76,7 @@ post_upload_commands:
     - /sbin/sysctl -w net.ipv4.conf.all.send_redirects=0
     - /sbin/sysctl -w net.ipv4.conf.default.send_redirects=0
     - /sbin/sysctl -w kernel.exec-shield=1
-    - /sbin/sysctl -w kernel.randomize_va_space=1
+    - /sbin/sysctl -w kernel.randomize_va_space=2
     - /sbin/sysctl -w net.ipv6.conf.default.router_solicitations=0
     - /sbin/sysctl -w net.ipv6.conf.default.accept_ra_rtr_pref=0
     - /sbin/sysctl -w net.ipv6.conf.default.accept_ra_pinfo=0
