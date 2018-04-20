@@ -11,4 +11,6 @@ post_upload_commands:
     - if ! grep -q 'install hfsplus /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install hfsplus /bin/true' >> /etc/modprobe.d/CIS.conf; fi
     - if ! grep -q 'install squashfs /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install squashfs /bin/true' >> /etc/modprobe.d/CIS.conf; fi
     - if ! grep -q 'install udf /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install udf /bin/true' >> /etc/modprobe.d/CIS.conf; fi
+    - if ! grep -q 'install vfat /bin/true' /etc/modprobe.d/CIS.conf; then echo 'install vfat /bin/true' >> /etc/modprobe.d/CIS.conf; fi
     - if ! grep -q 'options ipv6 disable=1' /etc/modprobe.d/CIS.conf; then echo 'options ipv6 disable=1' >> /etc/modprobe.d/CIS.conf; fi
+    
