@@ -187,6 +187,7 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     security_group_ids     = @conf.get_config("aws_security_group_ids")
     ebs_size               = @conf.get_config("aws_ebs_size", false)
     availability_zone      = @conf.get_config("aws_availability_zone")
+    additional_hdds        = @conf.get_config("additional_hdds", false) || {} 
     vpc                    = @conf.get_config("aws_vpc", false)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
     connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, vpc, created_by, custom_tags_hash)
