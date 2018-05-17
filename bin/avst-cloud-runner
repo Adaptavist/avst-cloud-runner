@@ -23,6 +23,7 @@ require "uri"
 require 'yaml'
 require 'confluence_reporter'
 require 'etc'
+require 'erb'
 
 avst_cloud_base ="#{File.expand_path("../../", __FILE__)}"
 
@@ -168,8 +169,9 @@ def create_rackspace_server(connection, server_name)
     provider = connection.provider
     region = connection.region
     flavor_id = @conf.get_config("flavor_id", false) || 4
+    additional_hdds = @conf.get_config("additional_hdds", false) || {} 
     image_id, hdd_device_path = get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, false)
-    connection.create_server(server_name, image_id, flavor_id) 
+    connection.create_server(server_name, image_id, flavor_id, additional_hdds) 
 end
 
 def create_aws_server(connection, server_name, custom_tags_hash)
@@ -650,6 +652,7 @@ def test_config(server_name)
     when 'rackspace'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:             #{mask_message(@conf.get_config('root_password', false))}"
+        puts "Additional hdds            #{@conf.get_config('additional_hdds', false) || false}"
     when 'none'
         puts 'Connecting directly to server:'
         puts "ip_address:                #{@conf.get_config('ip_address')}"
