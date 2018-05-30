@@ -1,0 +1,7 @@
+---
+
+
+post_upload_commands:
+    - "mkdir -p /opt/www_adaptavist_license/current/public"
+    - "echo 'PD9waHAKZWNobyAidGVzdDEyMzQuLi4iOwo/Pgo=' | base64 --decode > /opt/www_adaptavist_license/current/public/index.php"
+    - "chown -R 1041:1041 /opt/www_adaptavist_license"
