@@ -23,6 +23,7 @@ require "uri"
 require 'yaml'
 require 'confluence_reporter'
 require 'etc'
+require 'erb'
 
 avst_cloud_base ="#{File.expand_path("../../", __FILE__)}"
 
@@ -168,8 +169,9 @@ def create_rackspace_server(connection, server_name)
     provider = connection.provider
     region = connection.region
     flavor_id = @conf.get_config("flavor_id", false) || 4
+    additional_hdds = @conf.get_config("additional_hdds", false) || {} 
     image_id, hdd_device_path = get_image_id_and_hdd_device_path(provider, region, cloud_operating_system, false)
-    connection.create_server(server_name, image_id, flavor_id) 
+    connection.create_server(server_name, image_id, flavor_id, additional_hdds) 
 end
 
 def create_aws_server(connection, server_name, custom_tags_hash)
@@ -187,9 +189,10 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     security_group_ids     = @conf.get_config("aws_security_group_ids")
     ebs_size               = @conf.get_config("aws_ebs_size", false)
     availability_zone      = @conf.get_config("aws_availability_zone")
+    additional_hdds        = @conf.get_config("additional_hdds", false) || {} 
     vpc                    = @conf.get_config("aws_vpc", false)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, vpc, created_by, custom_tags_hash)
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash)
 end
 
 def create_azure_server(connection, server_name)
@@ -614,6 +617,7 @@ def test_config(server_name)
         puts "Connection SSH key         #{@conf.get_config('aws_ssh_key')}"
         puts "Subnet id:                 #{@conf.get_config("aws_subnet_id", false)}"
         puts "Security group ids:        #{@conf.get_config("aws_security_group_ids", false)}"
+        puts "Additional HDD:            #{@conf.get_config("additional_hdds", false)}"
         puts "Availability zone:         #{@conf.get_config("aws_availability_zone", false)}"
         puts "AWS ebs size:              #{@conf.get_config('aws_ebs_size', false)} G"
     when 'azure'
@@ -648,6 +652,7 @@ def test_config(server_name)
     when 'rackspace'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:             #{mask_message(@conf.get_config('root_password', false))}"
+        puts "Additional hdds            #{@conf.get_config('additional_hdds', false) || false}"
     when 'none'
         puts 'Connecting directly to server:'
         puts "ip_address:                #{@conf.get_config('ip_address')}"

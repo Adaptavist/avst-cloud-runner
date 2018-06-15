@@ -121,6 +121,7 @@ On **AWS**:
 The mould parameter maps directly onto the [AWS instance names](http://aws.amazon.com/ec2/instance-types/).
 
 On Aws you must also set aws_availability_zone, aws_ebs_size (can be nil), aws_key_name, aws_ssh_key, aws_subnet_id, aws_subnet_id, aws_security_group_ids
+Optionally you can define additional disks to be attached to the server by defining hash additional_hdds containing device_name (e.g. /dev/sda1) and ebs_size per each hdd
 
 #### git
 
