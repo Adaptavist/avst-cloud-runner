@@ -34,7 +34,9 @@ set :pty, true
 
 set :ssh_options, {
   forward_agent: false,
-  keys: [ENV["cap_access_password"]]
+  keys: [ENV["cap_access_password"]],
+  keepalive: true,
+  keepalive_interval: 60 #seconds
 }
 
 server ENV["cap_ip_address"], user: ENV["cap_access_user"], port: 22, password: ENV["cap_access_password"], roles: %w{app}
