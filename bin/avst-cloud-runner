@@ -16,7 +16,8 @@
 require 'avst-cloud'
 require 'hiera_loader'
 require 'docopt'
-require 'colorize'
+require 'rainbow/refinement'
+using Rainbow
 require 'json'
 require "net/http"
 require "uri"

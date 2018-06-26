@@ -26,6 +26,6 @@ Gem::Specification.new do |spec|
     spec.add_dependency "confluence_reporter", "~> 0.0.5"
     spec.add_dependency "derelict"
     spec.add_dependency "docopt", ">= 0.5.0"
-    spec.add_dependency "colorize", ">= 0.7.3"
+    spec.add_dependency "rainbow"
 end
 
