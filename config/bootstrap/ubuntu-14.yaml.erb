@@ -5,7 +5,7 @@ pre_upload_commands:
     - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" --force-overwrite -f -y curl'
     - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" --force-overwrite -f -y lvm2'
     - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" --force-overwrite -f -y wget'
-    - gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3; curl -sSL https://raw.github.com/adaptavist/rvm/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.28.0
+    - gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3; curl -sSL https://raw.github.com/adaptavist/rvm/master/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.28.0
     - source /usr/local/rvm/scripts/rvm; rvm install 2.4.0
     - 'echo "gem: --no-ri --no-rdoc" > ~/.gemrc'
     - 'apt-get update && apt-get install -o Dpkg::Options::="--force-confold" -f -y git puppet-common puppet augeas-tools libaugeas-dev libaugeas-ruby unzip'
