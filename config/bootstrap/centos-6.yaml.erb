@@ -5,7 +5,7 @@ pre_upload_commands:
     - yum install -y curl
     - yum install -y lvm2
     - yum install -y wget
-    - gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3; curl -sSL https://raw.github.com/adaptavist/rvm/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.28.0
+    - gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3; curl -sSL https://raw.github.com/adaptavist/rvm/master/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.28.0
     - source /usr/local/rvm/scripts/rvm; rvm install 2.4.0
     - 'echo "gem: --no-ri --no-rdoc" > ~/.gemrc'
     - 'yum install -y git puppet-common puppet augeas-devel augeas unzip'
