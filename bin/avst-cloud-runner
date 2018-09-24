@@ -743,7 +743,7 @@ begin
         File.open(custom_config_per_run_file, 'w') {|f| f.write server_config_yaml.to_yaml }
         # as custom facts that will be passed to server 
         # must pass client, mapped_hostname, host_<application_type> or puppet will fail
-        File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
+        File.open('config/custom_system_config/custom_facts/custom_facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
     end
 
     force              = options["--force"]
