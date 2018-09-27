@@ -471,9 +471,10 @@ def provision_server(server, server_tmp_folder, avst_cloud_config_dir)
     reference = @conf.get_config("reference", false)
     puppet_runner = @conf.get_config("puppet_runner", false)
     puppet_runner_prepare = @conf.get_config("puppet_runner_prepare", false)
+    download_dependencies_command = @conf.get_config("download_dependencies_command", false) || "gem install r10k -v 2.6.4; r10k puppetfile install"
     custom_provisioning_commands = @conf.get_config("custom_provisioning_commands", false)
     destination_folder = nil
-    server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder, avst_cloud_config_dir)
+    server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder, avst_cloud_config_dir, download_dependencies_command)
 end
 
 def post_provision_commands(server, server_tmp_folder, print_commands_only=false)
