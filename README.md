@@ -26,7 +26,7 @@ By default hiera.yaml loads data from config/hiera in order:
 
 See [hiera documentation](http://docs.puppetlabs.com/hiera/1/) for details on how hiera loads the configuration.
 
-By default (see global.eyaml configuration), avst-cloud-runner is setup to create centos-7, t2.medium server on eu-west aws with 12G of HDD. While running 'all' option it starts the server. Bootstraps it with rvm, ruby, gems (hiera, puppet, facter, r10k, puppet-runner) and provide required ssh keys. Provisioning stage of avst-cloud-runner loads on the newly created server content of git repo defined by 'git' and 'branch' parameter. By default [base_puppet_templates](https://github.com/Adaptavist/base_puppet_templates). After git pull [puppet-runner](https://github.com/Adaptavist/puppet-runner) is called based on the command defined by 'puppet_runner_prepare' parameter. r10k puppetfile install and start of puppet via command 'puppet_runner' (see defaults in global.eyaml).
+By default (see global.eyaml configuration), avst-cloud-runner is setup to create centos-7, t2.medium server on eu-west aws with 12G of HDD. While running 'all' option it starts the server. Bootstraps it with rvm, ruby, gems (hiera, puppet, facter, puppet-runner) and provide required ssh keys. Provisioning stage of avst-cloud-runner loads on the newly created server content of git repo defined by 'git' and 'branch' parameter. By default [base_puppet_templates](https://github.com/Adaptavist/base_puppet_templates). After git pull [puppet-runner](https://github.com/Adaptavist/puppet-runner) is called based on the command defined by 'puppet_runner_prepare' parameter. The parameter 'download_dependencies_command' defines how to download resources for 'puppet_runner' call, it defaults to installation or r10k and execution of 'r10k puppetfile install', and start of puppet via command 'puppet_runner' (see defaults in global.eyaml).
 
 NOTE: In case you want to start aws server, make sure you provide aws specific setup to be able to connect to server. See global.eyaml for details.
 
@@ -289,12 +289,12 @@ Server name must comply to "{customer_short_code}-{env}{server_number}" - see cu
  - stop
     - shutdown the server, but don't destroy it (not available on Rackspace as the API reports shutdown servers as ACTIVE)
  - bootstrap 
-    - installs rvm, ruby 2.0, puppet, r10k, augeas, unzip
+    - installs rvm, ruby 2.0, puppet, augeas, unzip
     - sets up .ssh keys, hostname and known_hosts
     - (in case of Rackspace provider, the param `root_password` is set as root password to the system)
  - provision 
     - uses Capistrano to push code from git repo/branch to server
-    - runs `r10k puppetfile install` and `puppet apply`
+    - runs `download_dependencies_command` command that by default installs and executes `r10k puppetfile install` and `puppet apply`
     - requires git repo and branch are setup
     - Rackspace provider requires `root_password` to be set
  - destroy 

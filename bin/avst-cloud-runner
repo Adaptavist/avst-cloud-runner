@@ -471,9 +471,10 @@ def provision_server(server, server_tmp_folder, avst_cloud_config_dir)
     reference = @conf.get_config("reference", false)
     puppet_runner = @conf.get_config("puppet_runner", false)
     puppet_runner_prepare = @conf.get_config("puppet_runner_prepare", false)
+    download_dependencies_command = @conf.get_config("download_dependencies_command", false) || "gem install r10k -v 2.6.4; r10k puppetfile install"
     custom_provisioning_commands = @conf.get_config("custom_provisioning_commands", false)
     destination_folder = nil
-    server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder, avst_cloud_config_dir)
+    server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder, avst_cloud_config_dir, download_dependencies_command)
 end
 
 def post_provision_commands(server, server_tmp_folder, print_commands_only=false)
@@ -737,13 +738,14 @@ begin
     end
 
     custom_config_per_run = nil
+    custom_facts_file_path = 'config/custom_system_config/config/custom_facts/custom_facts.yaml'
     if server_config_yaml
         custom_config_per_run = "custom_config_#{Time.now.to_i}_#{[*('a'..'z')].shuffle[0,8].join}"
         custom_config_per_run_file = "config/hiera/#{custom_config_per_run}.yaml"
         File.open(custom_config_per_run_file, 'w') {|f| f.write server_config_yaml.to_yaml }
         # as custom facts that will be passed to server 
         # must pass client, mapped_hostname, host_<application_type> or puppet will fail
-        File.open('config/custom_system_config/environments/production/modules/hosts/facts.d/facts.yaml', 'w') {|f| f.write server_config_yaml.to_yaml }
+        File.open(custom_facts_file_path, 'w') {|f| f.write server_config_yaml.to_yaml }
     end
 
     force              = options["--force"]
@@ -1004,9 +1006,13 @@ rescue Exception => e
     has_errors=true
 end
 
-if custom_config_per_run
+if (custom_config_per_run && File.file?(custom_config_per_run_file))
     File.delete(custom_config_per_run_file)
 end
+
+if (custom_config && File.file?(custom_facts_file_path))
+    File.delete(custom_facts_file_path)
+end 
 
 unless do_not_log
     @logger.debug("Reporting progress".green)
