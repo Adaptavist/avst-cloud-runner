@@ -1005,11 +1005,11 @@ rescue Exception => e
     has_errors=true
 end
 
-if custom_config_per_run
+if (custom_config_per_run && File.file?(custom_config_per_run_file))
     File.delete(custom_config_per_run_file)
 end
 
-if custom_config
+if (custom_config && File.file?(custom_facts_file_path))
     File.delete(custom_facts_file_path)
 end 
 
