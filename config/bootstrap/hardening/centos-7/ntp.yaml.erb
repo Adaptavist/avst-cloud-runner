@@ -1,5 +1,5 @@
 ---
 post_upload_commands:
-    - echo '-u ntp:ntp': OPTIONS='-u ntp:ntp' > /etc/sysconfig/ntpd
+    - echo 'OPTIONS='-u ntp:ntp' > /etc/sysconfig/ntpd
     - sed -i 's/restrict -4 default kod notrap nomodify nopeer noquery/restrict -4 default kod nomodify notrap nopeer noquery/g' /etc/ntp.conf
     - sed -i 's/restrict -6 default kod notrap nomodify nopeer noquery/restrict -6 default kod nomodify notrap nopeer noquery/g' /etc/ntp.conf
