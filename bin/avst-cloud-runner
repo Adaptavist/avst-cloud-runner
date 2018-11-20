@@ -195,7 +195,6 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     root_user              = @conf.get_config("root_user", false)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
     connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user)
-end
 
 def create_azure_server(connection, server_name)
     @logger.debug("Creating server #{server_name} on Azure.")
@@ -474,7 +473,11 @@ def provision_server(server, server_tmp_folder, avst_cloud_config_dir)
     download_dependencies_command = @conf.get_config("download_dependencies_command", false) || "gem install r10k -v 2.6.4; r10k puppetfile install"
     custom_provisioning_commands = @conf.get_config("custom_provisioning_commands", false)
     destination_folder = nil
+<<<<<<< HEAD
     server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder, avst_cloud_config_dir, download_dependencies_command)
+=======
+    server.provision(git, branch, server_tmp_folder, reference, custom_provisioning_commands, puppet_runner, puppet_runner_prepare, destination_folder, avst_cloud_config_dir)
+>>>>>>> 22919739c1fe2b374519dd2b68809c79b8abce96
 end
 
 def post_provision_commands(server, server_tmp_folder, print_commands_only=false)
