@@ -848,6 +848,8 @@ begin
         connection = AvstCloud::AzureRmConnection.new(provider_user, provider_pass, tenant_id, subscription_id)
     when 'none'
         # when provider is nil, connection not needed, only bootstrap, provision and cleanup commands are allowed
+        require 'avst-cloud/cloud_connection'
+        require 'avst-cloud/cloud_server'
         connection = nil
     else
         raise "ERROR: Currently supported providers are: azure, azurerm aws and rackspace.".red
