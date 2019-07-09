@@ -197,6 +197,36 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user)
 end
 
+def create_gcp_server(connection, server_name)
+    @logger.debug("Creating server #{server_name} on GCP")
+    cloud_operating_system = @conf.get_config("cloud_operating_system")
+    provider = connection.provider
+    region = connection.region
+    
+    mould                  = @conf.get_config("mould")
+    key_name               = @conf.get_config("gcp_key_name")
+    public_ssh_key         = @conf.get_config("gcp_ssh_public_key")
+    private_ssh_key        = @conf.get_config("gcp_ssh_private_key")
+    subnet_id              = @conf.get_config("gcp_subnet_id") || 'default'
+    security_group_ids     = []
+    root_disk_size         = @conf.get_config("gcp_root_size")
+    root_disk_type         = @conf.get_config("gcp_root_type", false) || 'pd-standard'
+    delete_root_disk       = @conf.get_config("gcp_delete_root_disk_with_vm", false) || true
+    availability_zone      = @conf.get_config("gcp_availability_zone")
+    machine_type_id        = @conf.get_config("gcp_vm_image", false) || nil
+    additional_hdds        = @conf.get_config("additional_hdds", false) || {} 
+    vpc                    = @conf.get_config("gcp_vpc", false) || 'default'
+    root_user              = @conf.get_config("root_user", false)
+    created_by             = @conf.get_config("created_by", false) || Etc.getlogin
+    gcp_network_tags       = @conf.get_config("gcp_network_tags", false) || []
+
+    # if the network tags are a hash (i.e key => value like for AWS) error
+    raise "Network tags for GCP need to be an array of values, NOT a hash of key => value pairs!" if gcp_network_tags.is_a?(Hash)
+
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, public_ssh_key, private_ssh_key, subnet_id, security_group_ids, root_disk_size, root_disk_type, machine_type_id, availability_zone, additional_hdds, vpc, created_by, gcp_network_tags, root_user, delete_root_disk)
+
+end
+
 def create_azure_server(connection, server_name)
     @logger.debug("Creating server #{server_name} on Azure.")
     cloud_operating_system = @conf.get_config("cloud_operating_system")
@@ -573,6 +603,11 @@ def connect_to_server(connection, server_name, requires_root_access=true, requir
         network_interface_resource_group = @conf.get_config('network_interface_resource_group', false) 
 
         server = connection.server(server_name, resource_group, root_user, root_password, use_public_ip, network_interface_resource_group, ip_configuration_resource_group)
+    when 'gcp'
+        if requires_root_access
+            root_password = @conf.get_config('gcp_ssh_private_key')
+        end
+        server = connection.server(server_name, root_user, root_password, os)
     when 'rackspace'
         if requires_root_access
             root_password = @conf.get_config('root_password')
@@ -652,6 +687,21 @@ def test_config(server_name)
         puts "Destroy Resource Group:    #{@conf.get_config("azure_destroy_resource_group", false) == nil ? false : @conf.get_config("azure_destroy_resource_group", false)}"
         puts "Azure OS Image:            #{@conf.get_config("publisher")} #{@conf.get_config("offer")} #{@conf.get_config("sku")} #{@conf.get_config("version")}"
         puts "Data disks:                #{@conf.get_config("data_disks", false) || {}}"
+    when 'gcp'
+        puts "Project:                   #{@conf.get_config("gcp_project", false) || @global_config['gcp_project']}"
+        puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
+        puts "Public SSH key             #{@conf.get_config("gcp_ssh_public_key")}"
+        puts "Private SSH key            #{@conf.get_config("gcp_ssh_private_key")}"
+        puts "VPC:                       #{@conf.get_config("gcp_vpc", false) || 'default'}"
+        puts "Subnet id:                 #{@conf.get_config("gcp_subnet_id", false) || 'default'}"
+        puts "Additional HDD:            #{@conf.get_config("additional_hdds", false)}"
+        puts "Availability zone:         #{@conf.get_config("gcp_availability_zone")}"
+        puts "Root Disk size:            #{@conf.get_config('gcp_root_size')} G"
+        puts "Root Disk Type:            #{@conf.get_config('gcp_root_type', false)}"
+        puts "Delete Root Disk With VM:  #{@conf.get_config('gcp_delete_root_disk_with_vm', false)}"
+        puts "GCP VM Image:              #{@conf.get_config("gcp_vm_image", false)}"
+        puts "GCP Network Tags:          #{@conf.get_config("gcp_network_tags", false)}"   
+        puts "Connect user:              #{@conf.get_config("root_user", false)}" 
     when 'rackspace'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region'] || :lon}"
         puts "Root password:             #{mask_message(@conf.get_config('root_password', false))}"
@@ -835,17 +885,29 @@ begin
         require 'avst-cloud/azure_server'
         provider_api_url = @conf.get_config("provider_api_url", false) || @global_config['provider_api_url']
         connection = AvstCloud::AzureConnection.new(provider_user, provider_pass, provider_api_url)
-    when 'rackspace'
-        require 'avst-cloud/rackspace_connection'
-        require 'avst-cloud/rackspace_server'
-        region = @conf.get_config("region", false) || @global_config['region'] || :lon
-        connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
     when 'azurerm'
         require 'avst-cloud/azure_rm_connection'
         require 'avst-cloud/azure_rm_server'
         tenant_id = @conf.get_config("tenant_id")
         subscription_id = @conf.get_config("subscription_id")
         connection = AvstCloud::AzureRmConnection.new(provider_user, provider_pass, tenant_id, subscription_id)
+    when 'gcp'
+        region = @conf.get_config("region", false) || @global_config['region']
+        gcp_project = @conf.get_config("gcp_project", false) || @global_config['gcp_project']
+        unless region
+            raise "Please provide region. Provided: Region #{region}"
+        end
+        unless gcp_project
+            raise "Please provide GCP Project key"
+        end
+        require 'avst-cloud/gcp_connection'
+        require 'avst-cloud/gcp_server'
+        connection = AvstCloud::GcpConnection.new(provider_user, provider_pass, region, gcp_project)
+    when 'rackspace'
+        require 'avst-cloud/rackspace_connection'
+        require 'avst-cloud/rackspace_server'
+        region = @conf.get_config("region", false) || @global_config['region'] || :lon
+        connection = AvstCloud::RackspaceConnection.new(provider_user, provider_pass, region)
     when 'none'
         # when provider is nil, connection not needed, only bootstrap, provision and cleanup commands are allowed
         require 'avst-cloud/cloud_connection'
@@ -878,6 +940,8 @@ begin
             when 'azurerm'
                 enable_passwordless_sudo = true
                 server = create_azure_rm_server(connection, server_name)
+            when 'gcp'
+                server = create_gcp_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
@@ -903,10 +967,12 @@ begin
                server = create_azure_server(connection, server_name)
             when 'azurerm'
                server = create_azure_rm_server(connection, server_name)
+            when 'gcp'
+                server = create_gcp_server(connection, server_name)
             when 'rackspace'
                 server = create_rackspace_server(connection, server_name)
             else
-                raise "You can create server only for AWS, Azure and Rackspace provider"
+                raise "You can create server only for AWS, Azure, GCP and Rackspace provider"
             end
         else
             @logger.debug("Not creating server, you have to confirm.".yellow)
