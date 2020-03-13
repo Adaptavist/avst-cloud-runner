@@ -194,7 +194,8 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     vpc                    = @conf.get_config("aws_vpc", false)
     root_user              = @conf.get_config("root_user", false)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user)
+    create_elastic_ip      = @conf.get_config("aws_create_elastic_ip", false) || false
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip)
 end
 
 def create_gcp_server(connection, server_name)
@@ -658,6 +659,8 @@ def test_config(server_name)
         puts "Additional HDD:            #{@conf.get_config("additional_hdds", false)}"
         puts "Availability zone:         #{@conf.get_config("aws_availability_zone", false)}"
         puts "AWS ebs size:              #{@conf.get_config('aws_ebs_size', false)} G"
+        puts "Create Elastic IP:         #{@conf.get_config("aws_create_elastic_ip", false) || false}"
+        puts "Destroy IP with VM:        #{@conf.get_config("aws_destroy_ip_with_vm", false) || false}"
     when 'azure'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
         puts "Connection SSH key         #{@conf.get_config('azure_ssh_key')}"    
@@ -1037,6 +1040,13 @@ begin
                 destroy_azure_rm_server_and_resources(connection, server, server_name)
             else
                 server.destroy
+                # if this is AWS, if we want to delete any EIP and we have an IP
+                if provider == "aws" and @conf.get_config("aws_destroy_ip_with_vm", false) || false and server_ip_addr
+                    # try to delete the EIP (this will just do nothing if its not a EIP)
+                    @logger.debug "Attempting to delete IP address as it MAY be an Elastic IP"
+                    connection.delete_elastic_ip(server_ip_addr)
+
+                end
             end
             if server_ip_addr
                 remove_known_hosts_entry(server_ip_addr, remove_known_hosts)
