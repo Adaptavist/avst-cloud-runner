@@ -7,15 +7,15 @@ pre_upload_commands:
     - yum install -y wget
     - gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3; curl -sSL https://raw.github.com/adaptavist/rvm/master/adaptavist_rvm/binscripts/rvm-installer | bash -s -- --version 1.28.0
     - source /usr/local/rvm/scripts/rvm; rvm install 2.4.0
-    - 'echo "gem: --no-ri --no-rdoc" > ~/.gemrc'
+    - 'echo "gem: --no-document" > ~/.gemrc'
     - 'yum install -y git puppet-common puppet augeas-devel augeas unzip'
-    - source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc facter -v 2.4.4 
-    - source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet -v 4.8.1 
-    - source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc r10k ruby-augeas hiera-eyaml hiera-fragment ruby-shadow
+    - source /usr/local/rvm/scripts/rvm; gem install --no-document facter -v 2.4.4 
+    - source /usr/local/rvm/scripts/rvm; gem install --no-document puppet -v 4.10.12 
+    - source /usr/local/rvm/scripts/rvm; gem install --no-document r10k ruby-augeas hiera-eyaml hiera-fragment ruby-shadow
     - <%="echo 'HOSTNAME=#{fqdn}' >> /etc/sysconfig/network; sed -i '/127.0.1.1/d' /etc/hosts; echo '127.0.1.1 #{fqdn} #{server_name}' >> /etc/hosts; hostname #{fqdn};"%>
     - <%="if [ ! -f /usr/bin/hostnamectl ]; then  /etc/init.d/network restart; else /usr/bin/hostnamectl set-hostname  #{fqdn}; fi" %>
     - mount -t xfs | egrep ' / '.*.inode64 > /dev/null 2>&1 && (mount -o remount,inode32 /;mount -o remount,inode64 /)
-    - source /usr/local/rvm/scripts/rvm; gem install --no-ri --no-rdoc puppet-runner
+    - source /usr/local/rvm/scripts/rvm; gem install --no-document puppet-runner
     - mkdir /root/.ssh
     - chmod 700 /root/.ssh
     <% unless as_user == 'root' %>
