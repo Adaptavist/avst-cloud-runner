@@ -124,7 +124,13 @@ On Aws you must also set aws_availability_zone, aws_ebs_size (can be nil), aws_k
 
 There are a number of optionsl params for AWS Virtual Servers, these are 
 * You can define the creation of a static IP address via the `aws_create_elastic_ip` boolean flag (defalts to **false**)
-* Additional disks can be attached to the server by defining the hash `additional_hdds` containing at least device_name (e.g. /dev/sda1) and ebs_size per each hdd, the additional disks can be encrypted or not via KMS, example hash below
+* Additional disks can be attached to the server by defining the hash `additional_hdds` containing at least device_name (e.g. /dev/sda1) and ebs_size per each hdd, the additional disks can be encrypted or not via KMS, the parameters inside each has item for additional-hdds are:
+  * `device_name` - the Linux device name to mount the device on (i.e /dev/sdf')
+  * `ebs_size` - the size of the EBS volume in GB
+  * `encrypted` - boolean to determine if the disk should be ecrypted (defaults to **false**)
+  * `encryption_key_id` - valid if `encrypted is true`, this is the key id to use for encryption if not set then the default EBS KMS key for the region will be used (defaults to **unset**)
+  * `delete_disk_with_vm` - boolean flag to determine if the disk is deleted with the VM (defaults tto **true**)
+* An example `additional_hdds` hash is show below:  
 
 ```
 additional_hdds:
@@ -143,6 +149,7 @@ additional_hdds:
 ```
 * The root EBS volume can be encrypted by setting the `aws_ebs_encrpyt` boolean flag (defalts to **false**)
 * if `aws_ebs_encrpyt` is set to true a specific KMS encryption key for the root volume can be set via the `aws_ebs_encryption_key_id` parameter (if not set defaults to the default KMS key for EBS in that region)
+* In order to stop the root volume being deleted with the VM the `aws_delete_root_disk_with_vm` flag can be set to false (**defaults to true**)
 #### git
 
 - Default value "https://github.com/Adaptavist/base_puppet_templates" defines repository where to load puppet code and its hiera configuration

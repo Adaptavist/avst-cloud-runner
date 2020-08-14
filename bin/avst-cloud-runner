@@ -197,7 +197,9 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     create_elastic_ip      = @conf.get_config("aws_create_elastic_ip", false) || false
     encrypt_root           = @conf.get_config("aws_ebs_encrpyt", false) || false
     root_encryption_key    = @conf.get_config("aws_ebs_encryption_key_id", false) || nil
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip, encrypt_root,root_encryption_key)
+    delete_root_disk       = @conf.get_config("aws_delete_root_disk_with_vm", false)
+    delete_root_disk = true if delete_root_disk.nil?
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip, encrypt_root,root_encryption_key, delete_root_disk)
 end
 
 def create_gcp_server(connection, server_name)
@@ -665,6 +667,7 @@ def test_config(server_name)
         puts "AWS ebs encrypt key:       #{@conf.get_config('aws_ebs_encryption_key_id', false) || false}"
         puts "Create Elastic IP:         #{@conf.get_config("aws_create_elastic_ip", false) || false}"
         puts "Destroy IP with VM:        #{@conf.get_config("aws_destroy_ip_with_vm", false) || false}"
+        puts "Delete Root Disk With VM:  #{@conf.get_config("aws_delete_root_disk_with_vm", false)}"
     when 'azure'
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
         puts "Connection SSH key         #{@conf.get_config('azure_ssh_key')}"    
