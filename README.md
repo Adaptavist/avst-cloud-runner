@@ -121,8 +121,28 @@ On **AWS**:
 The mould parameter maps directly onto the [AWS instance names](http://aws.amazon.com/ec2/instance-types/).
 
 On Aws you must also set aws_availability_zone, aws_ebs_size (can be nil), aws_key_name, aws_ssh_key, aws_subnet_id, aws_subnet_id, aws_security_group_ids
-Optionally you can define additional disks to be attached to the server by defining hash additional_hdds containing device_name (e.g. /dev/sda1) and ebs_size per each hdd
 
+There are a number of optionsl params for AWS Virtual Servers, these are 
+* You can define the creation of a static IP address via the `aws_create_elastic_ip` boolean flag (defalts to **false**)
+* Additional disks can be attached to the server by defining the hash `additional_hdds` containing at least device_name (e.g. /dev/sda1) and ebs_size per each hdd, the additional disks can be encrypted or not via KMS, example hash below
+
+```
+additional_hdds:
+  'EncryptedWithSpecificKeyDisk':
+    device_name: '/dev/sdf'
+    ebs_size: '20'
+    encryption_key_id: '7ef312d8-1ede-43c9-9757-97f5df2cd4e7'
+    encrypted: true
+  'EncryptedWithDefaultKeyDisk':
+    device_name: '/dev/sdf'
+    ebs_size: '20'
+    encrypted: true  
+  'NotEncryptedDisk':
+    device_name: '/dev/sdh'
+    ebs_size: '20'
+```
+* The root EBS volume can be encrypted by setting the `aws_ebs_encrpyt` boolean flag (defalts to **false**)
+* if `aws_ebs_encrpyt` is set to true a specific KMS encryption key for the root volume can be set via the `aws_ebs_encryption_key_id` parameter (if not set defaults to the default KMS key for EBS in that region)
 #### git
 
 - Default value "https://github.com/Adaptavist/base_puppet_templates" defines repository where to load puppet code and its hiera configuration

@@ -195,7 +195,9 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     root_user              = @conf.get_config("root_user", false)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
     create_elastic_ip      = @conf.get_config("aws_create_elastic_ip", false) || false
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip)
+    encrypt_root           = @conf.get_config("aws_ebs_encrpyt", false) || false
+    root_encryption_key    = @conf.get_config("aws_ebs_encryption_key_id", false) || nil
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip, encrypt_root,root_encryption_key)
 end
 
 def create_gcp_server(connection, server_name)
@@ -659,6 +661,8 @@ def test_config(server_name)
         puts "Additional HDD:            #{@conf.get_config("additional_hdds", false)}"
         puts "Availability zone:         #{@conf.get_config("aws_availability_zone", false)}"
         puts "AWS ebs size:              #{@conf.get_config('aws_ebs_size', false)} G"
+        puts "AWS encrypt ebs:           #{@conf.get_config('aws_ebs_encrpyt', false) || false}"
+        puts "AWS ebs encrypt key:       #{@conf.get_config('aws_ebs_encryption_key_id', false) || false}"
         puts "Create Elastic IP:         #{@conf.get_config("aws_create_elastic_ip", false) || false}"
         puts "Destroy IP with VM:        #{@conf.get_config("aws_destroy_ip_with_vm", false) || false}"
     when 'azure'
