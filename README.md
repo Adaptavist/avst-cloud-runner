@@ -127,6 +127,8 @@ There are a number of optionsl params for AWS Virtual Servers, these are
 * Additional disks can be attached to the server by defining the hash `additional_hdds` containing at least device_name (e.g. /dev/sda1) and ebs_size per each hdd, the additional disks can be encrypted or not via KMS, the parameters inside each has item for additional-hdds are:
   * `device_name` - the Linux device name to mount the device on (i.e /dev/sdf')
   * `ebs_size` - the size of the EBS volume in GB
+  * `volume_type` - specifies the type of AWS disk that should be created (defaults to **gp2**)
+  * `volume_iops` specifies the number of IOPS to use **if** the `volume_type` is set to *io1* (defaults to **0** whch will error for *io1* type disks)
   * `encrypted` - boolean to determine if the disk should be ecrypted (defaults to **false**)
   * `encryption_key_id` - valid if `encrypted is true`, this is the key id to use for encryption if not set then the default EBS KMS key for the region will be used (defaults to **unset**)
   * `delete_disk_with_vm` - boolean flag to determine if the disk is deleted with the VM (defaults tto **true**)
@@ -139,10 +141,13 @@ additional_hdds:
     ebs_size: '20'
     encryption_key_id: '7ef312d8-1ede-43c9-9757-97f5df2cd4e7'
     encrypted: true
+    volume_type: 'io1'
+    volume_iops: 300
   'EncryptedWithDefaultKeyDisk':
     device_name: '/dev/sdf'
     ebs_size: '20'
-    encrypted: true  
+    encrypted: true 
+    volume_type: 'gp2'
   'NotEncryptedDisk':
     device_name: '/dev/sdh'
     ebs_size: '20'
@@ -150,6 +155,8 @@ additional_hdds:
 * The root EBS volume can be encrypted by setting the `aws_ebs_encrpyt` boolean flag (defalts to **false**)
 * if `aws_ebs_encrpyt` is set to true a specific KMS encryption key for the root volume can be set via the `aws_ebs_encryption_key_id` parameter (if not set defaults to the default KMS key for EBS in that region)
 * In order to stop the root volume being deleted with the VM the `aws_delete_root_disk_with_vm` flag can be set to false (**defaults to true**)
+* the root volume type can be specificec by setting the `aws_root_disk_type` parameter (defaults to **gp2**)
+* the number of IOPS to use, **if** the `aws_root_disk_type` value is set to *io1*, can be set via the `aws_root_disk_iops` parameter (defaults to **0** whch will error for *io1* type disks)
 #### git
 
 - Default value "https://github.com/Adaptavist/base_puppet_templates" defines repository where to load puppet code and its hiera configuration
