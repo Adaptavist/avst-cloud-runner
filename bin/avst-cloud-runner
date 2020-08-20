@@ -199,7 +199,9 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     root_encryption_key    = @conf.get_config("aws_ebs_encryption_key_id", false) || nil
     delete_root_disk       = @conf.get_config("aws_delete_root_disk_with_vm", false)
     delete_root_disk = true if delete_root_disk.nil?
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip, encrypt_root,root_encryption_key, delete_root_disk)
+    root_disk_type         = @conf.get_config("aws_root_disk_type", false) || 'gp2'
+    root_disk_iops         = @conf.get_config("aws_root_disk_iops", false) || '0'
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip, encrypt_root,root_encryption_key, delete_root_disk, root_disk_type,root_disk_iops)
 end
 
 def create_gcp_server(connection, server_name)
@@ -656,15 +658,23 @@ def test_config(server_name)
     puts "Config Directory:          #{@avst_cloud_config_dir}"
     case provider
     when 'aws'
+        ebs_root_type = @conf.get_config("aws_root_disk_type", false) || 'gp2'
+        ebs_encrypt_root = @conf.get_config('aws_ebs_encrpyt', false) || false
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
         puts "Connection SSH key         #{@conf.get_config('aws_ssh_key')}"
         puts "Subnet id:                 #{@conf.get_config("aws_subnet_id", false)}"
         puts "Security group ids:        #{@conf.get_config("aws_security_group_ids", false)}"
         puts "Additional HDD:            #{@conf.get_config("additional_hdds", false)}"
         puts "Availability zone:         #{@conf.get_config("aws_availability_zone", false)}"
-        puts "AWS ebs size:              #{@conf.get_config('aws_ebs_size', false)} G"
-        puts "AWS encrypt ebs:           #{@conf.get_config('aws_ebs_encrpyt', false) || false}"
-        puts "AWS ebs encrypt key:       #{@conf.get_config('aws_ebs_encryption_key_id', false) || false}"
+        puts "AWS root ebs size          #{@conf.get_config('aws_ebs_size', false)} G"
+        puts "AWS encrypt root ebs:      #{ebs_encrypt_root}"
+        if ebs_encrypt_root
+            puts "AWS root ebs encrypt key:  #{@conf.get_config('aws_ebs_encryption_key_id', false) || 'default'}"
+        end
+        puts "AWS root ebs type:         #{ebs_root_type}"
+        if ebs_root_type == 'io1'
+            puts "AWS root ebs IOPS:         #{@conf.get_config("aws_root_disk_iops", false) || '0'}"
+        end
         puts "Create Elastic IP:         #{@conf.get_config("aws_create_elastic_ip", false) || false}"
         puts "Destroy IP with VM:        #{@conf.get_config("aws_destroy_ip_with_vm", false) || false}"
         puts "Delete Root Disk With VM:  #{@conf.get_config("aws_delete_root_disk_with_vm", false)}"
