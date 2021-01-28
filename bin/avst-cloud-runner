@@ -195,7 +195,9 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     root_user              = @conf.get_config("root_user", false)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
     create_elastic_ip      = @conf.get_config("aws_create_elastic_ip", false) || false
-    encrypt_root           = @conf.get_config("aws_ebs_encrpyt", false) || false
+    encrypt_root           = @conf.get_config("aws_ebs_encrypt", false) 
+    # fallback to the bad spelling of aws_ebs_encrypt if aws_ebs_encrypt is not set, since this was in use for a while!
+    encrypt_root = @conf.get_config("aws_ebs_encrpyt", false) || false if encrypt_root.nil?
     root_encryption_key    = @conf.get_config("aws_ebs_encryption_key_id", false) || nil
     delete_root_disk       = @conf.get_config("aws_delete_root_disk_with_vm", false)
     delete_root_disk = true if delete_root_disk.nil?
@@ -659,7 +661,9 @@ def test_config(server_name)
     case provider
     when 'aws'
         ebs_root_type = @conf.get_config("aws_root_disk_type", false) || 'gp2'
-        ebs_encrypt_root = @conf.get_config('aws_ebs_encrpyt', false) || false
+        ebs_encrypt_root = @conf.get_config('aws_ebs_encrypt', false)
+        # fallback to the bad spelling of aws_ebs_encrypt if aws_ebs_encrypt is not set, since this was in use for a while!
+        ebs_encrypt_root = @conf.get_config("aws_ebs_encrpyt", false) || false if ebs_encrypt_root.nil?
         puts "Region:                    #{@conf.get_config('region', false) || @global_config['region']}"
         puts "Connection SSH key         #{@conf.get_config('aws_ssh_key')}"
         puts "Subnet id:                 #{@conf.get_config("aws_subnet_id", false)}"
