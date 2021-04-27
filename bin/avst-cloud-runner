@@ -196,6 +196,7 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     created_by             = @conf.get_config("created_by", false) || Etc.getlogin
     create_elastic_ip      = @conf.get_config("aws_create_elastic_ip", false) || false
     private_ip             = @conf.get_config("aws_private_ip", false)
+    public_ip              = @conf.get_config("aws_public_ip", false)
     encrypt_root           = @conf.get_config("aws_ebs_encrypt", false) 
     # fallback to the bad spelling of aws_ebs_encrypt if aws_ebs_encrypt is not set, since this was in use for a while!
     encrypt_root = @conf.get_config("aws_ebs_encrpyt", false) || false if encrypt_root.nil?
@@ -204,7 +205,7 @@ def create_aws_server(connection, server_name, custom_tags_hash)
     delete_root_disk = true if delete_root_disk.nil?
     root_disk_type         = @conf.get_config("aws_root_disk_type", false) || 'gp2'
     root_disk_iops         = @conf.get_config("aws_root_disk_iops", false) || '0'
-    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip, encrypt_root,root_encryption_key, delete_root_disk, root_disk_type,root_disk_iops, private_ip)
+    connection.create_server(server_name, mould, cloud_operating_system, key_name, ssh_key, subnet_id, security_group_ids, ebs_size, hdd_device_path, ami_image_id, availability_zone, additional_hdds, vpc, created_by, custom_tags_hash, root_user, create_elastic_ip, encrypt_root,root_encryption_key, delete_root_disk, root_disk_type,root_disk_iops, private_ip, public_ip)
 end
 
 def create_gcp_server(connection, server_name)
@@ -681,6 +682,8 @@ def test_config(server_name)
             puts "AWS root ebs IOPS:         #{@conf.get_config("aws_root_disk_iops", false) || '0'}"
         end
         puts "Create Elastic IP:         #{@conf.get_config("aws_create_elastic_ip", false) || false}"
+        public_ip = @conf.get_config("aws_public_ip", false)  || false
+        puts "Existing Public IP Search: #{public_ip}" if public_ip
         puts "Custom Private IP:         #{@conf.get_config("aws_private_ip", false)}"
         puts "Destroy IP with VM:        #{@conf.get_config("aws_destroy_ip_with_vm", false) || false}"
         puts "Delete Root Disk With VM:  #{@conf.get_config("aws_delete_root_disk_with_vm", false)}"
